@@ -3,7 +3,8 @@
 
 import type React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import ControlsPanel from '@/components/glass-view/controls-panel';
+import OverlayControls from '@/components/glass-view/overlay-controls';
+import BackgroundExportControls from '@/components/glass-view/background-export-controls';
 import PreviewArea from '@/components/glass-view/preview-area';
 import { useToast } from "@/hooks/use-toast";
 
@@ -72,10 +73,6 @@ export default function GlassViewPage() {
       setBackgroundType(backgroundFile.type.startsWith('image/') ? 'image' : 'video');
       setBackgroundHint('custom background');
     }
-    // Note: If backgroundFile becomes null (e.g. user clears it or selects a default),
-    // this effect will run, but it won't set backgroundUrl, backgroundType, or backgroundHint here.
-    // The existing backgroundUrl (which might be a default URL) will remain.
-    // The cleanup function will revoke the objectUrl if one was created in this specific effect run.
     return () => {
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
@@ -84,8 +81,6 @@ export default function GlassViewPage() {
   }, [backgroundFile]);
 
   const handleSetDefaultBackground = (defaultBg: DefaultBackground) => {
-    // Setting backgroundFile to null will trigger the useEffect above,
-    // ensuring its cleanup function revokes any existing blob URL from a previous custom file.
     setBackgroundFile(null); 
     
     setBackgroundUrl(defaultBg.url);
@@ -103,10 +98,6 @@ export default function GlassViewPage() {
       newUrl = URL.createObjectURL(overlayFile);
       setOverlayUrl(newUrl);
       setOverlayType(overlayFile.type.startsWith('image/') ? 'image' : 'video');
-    } else {
-      // If overlayFile is cleared, optionally clear overlayUrl and overlayType
-      // setOverlayUrl(null); 
-      // setOverlayType(null);
     }
     return () => {
       if (newUrl) {
@@ -454,12 +445,9 @@ export default function GlassViewPage() {
   );
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen bg-background text-foreground overflow-hidden">
-      <aside className="w-full lg:w-[380px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
-        <ControlsPanel
-          onBackgroundChange={handleBackgroundFileChange}
-          defaultBackgrounds={defaultBackgrounds}
-          onSetDefaultBackground={handleSetDefaultBackground}
+    <div className="flex flex-row h-screen bg-background text-foreground overflow-hidden">
+      <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
+        <OverlayControls
           onOverlayChange={handleOverlayFileChange}
           opacity={opacity}
           onOpacityChange={setOpacity}
@@ -473,9 +461,6 @@ export default function GlassViewPage() {
           onBrowserBarChange={setBrowserBar}
           browserUrl={browserUrlText}
           onBrowserUrlChange={setBrowserUrlText}
-          onExportImage={handleExportImage}
-          onExportVideo={handleExportVideo}
-          isExporting={isExporting}
         />
       </aside>
 
@@ -498,8 +483,21 @@ export default function GlassViewPage() {
           isDragging={isDragging}
         />
       </main>
+      
+      <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
+        <BackgroundExportControls
+          onBackgroundChange={handleBackgroundFileChange}
+          defaultBackgrounds={defaultBackgrounds}
+          onSetDefaultBackground={handleSetDefaultBackground}
+          onExportImage={handleExportImage}
+          onExportVideo={handleExportVideo}
+          isExporting={isExporting}
+        />
+      </aside>
       <HiddenMediaForExport />
     </div>
   );
 }
+    
+
     
