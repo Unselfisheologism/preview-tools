@@ -92,8 +92,6 @@ export default function GlassViewPage() {
 
   const getCurrentBrowserBarHeight = useCallback(() => {
     if (browserBar === 'none') return 0;
-    // Ensure overlay content always starts directly below the bar
-    // The actual height for drawing is what matters here.
     if (browserBar === 'chrome') return BROWSER_BAR_HEIGHT_CHROME_PX;
     if (browserBar === 'safari') return BROWSER_BAR_HEIGHT_SAFARI_PX;
     return 0;
@@ -115,7 +113,6 @@ export default function GlassViewPage() {
       setBackgroundType(backgroundFile.type.startsWith('image/') ? 'image' : 'video');
       setBackgroundHint('custom background');
     } else if (backgroundMode !== 'custom') {
-      // Revoke if mode changes away from custom and there was a file
       const currentCustomUrl = backgroundFile ? URL.createObjectURL(backgroundFile) : null;
       if (currentCustomUrl && backgroundUrl === currentCustomUrl) {
          URL.revokeObjectURL(currentCustomUrl);
@@ -131,7 +128,7 @@ export default function GlassViewPage() {
 
   const handleSetDefaultBackground = (defaultBg: DefaultBackground) => {
     setBackgroundMode('default');
-    setBackgroundFile(null);
+    setBackgroundFile(null); // Clear custom file when selecting default
     setBackgroundUrl(defaultBg.url);
     setBackgroundType('image');
     setBackgroundHint(defaultBg.hint);
@@ -209,7 +206,7 @@ export default function GlassViewPage() {
   }, [isDragging, dragStartPoint]);
 
  const overlayStyle: React.CSSProperties = {
-    opacity: 1, // Opacity is handled on canvas by globalAlpha. For preview, it's part of the main style.
+    opacity: opacity, // Use dynamic opacity state for preview
     transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px) scale(${scale}) rotate(${rotation}deg)`,
     filter: blurIntensity > 0 ? `blur(${blurIntensity}px)` : 'none',
     width: '100%',
@@ -218,11 +215,11 @@ export default function GlassViewPage() {
     top: 0,
     left: 0,
     cursor: isDragging ? 'grabbing' : 'grab',
-    transition: isDragging ? 'none' : 'transform 0.1s ease-out', // Smoother transition when not dragging
-    willChange: 'transform', // Performance hint for browsers
+    transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+    willChange: 'transform',
   };
   if (isDragging) {
-    delete overlayStyle.transition; // No transition during drag for immediate feedback
+    delete overlayStyle.transition;
   }
 
 
@@ -230,7 +227,6 @@ export default function GlassViewPage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const currentBrowserBarHeight = getCurrentBrowserBarHeight();
 
-    // Rounded corners for the entire canvas output if enabled
     if (roundedCorners) {
       ctx.save();
       ctx.beginPath();
@@ -247,7 +243,6 @@ export default function GlassViewPage() {
       ctx.clip();
     }
 
-    // 1. Draw Background (Solid, Transparent, or Image/Video)
     if (backgroundMode === 'solid') {
       ctx.fillStyle = solidBackgroundColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -275,7 +270,6 @@ export default function GlassViewPage() {
       }
     }
 
-    // 2. Draw VFX, Vignette, and Noise over the background
     if (activeVfx === 'cornerGlow') {
       ctx.save();
       const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(canvas.width, canvas.height) * 0.6);
@@ -307,7 +301,6 @@ export default function GlassViewPage() {
       ctx.restore();
     }
 
-    // 3. Draw Overlay (Screenshot/Recording with its own effects)
     ctx.save();
     ctx.globalAlpha = opacity;
     if (blurIntensity > 0) {
@@ -378,8 +371,8 @@ export default function GlassViewPage() {
         }
     }
 
-    ctx.restore(); // Restores overlay transform
-    ctx.restore(); // Restores overlay group's globalAlpha and main filter
+    ctx.restore(); 
+    ctx.restore(); 
 
     if (roundedCorners) {
       ctx.restore();
@@ -392,7 +385,7 @@ export default function GlassViewPage() {
       opacity, scale, rotation, blurIntensity,
       overlayPosition,
       roundedCorners, browserBar, browserUrlText,
-      getCurrentBrowserBarHeight, noiseCanvasRef // Added noiseCanvasRef dependency
+      getCurrentBrowserBarHeight, noiseCanvasRef
     ]);
 
   const getContainSize = (containerWidth: number, containerHeight: number, naturalWidth: number, naturalHeight: number) => {
@@ -426,8 +419,8 @@ export default function GlassViewPage() {
     setIsExporting(true);
 
     const canvas = document.createElement('canvas');
-    let exportWidth = 1280; // default
-    let exportHeight = 720; // default
+    let exportWidth = 1280; 
+    let exportHeight = 720; 
 
     if ((backgroundMode === 'default' || backgroundMode === 'custom') && backgroundUrl) {
         const bgMedia = document.getElementById('background-media-export') as HTMLImageElement | HTMLVideoElement;
@@ -447,7 +440,7 @@ export default function GlassViewPage() {
         });
         exportWidth = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoWidth || 1280) : ((bgMedia as HTMLImageElement).naturalWidth || 1280);
         exportHeight = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoHeight || 720) : ((bgMedia as HTMLImageElement).naturalHeight || 720);
-    } else if (overlayUrl) { // Base size on overlay if no background image/video
+    } else if (overlayUrl) { 
         const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement | HTMLVideoElement;
          if (ovMedia) {
             await new Promise<void>(resolve => {
@@ -500,7 +493,7 @@ export default function GlassViewPage() {
   const handleExportVideo = useCallback(async () => {
     if (backgroundMode !== 'custom' && backgroundMode !== 'default' || backgroundType !== 'video' || !backgroundUrl) {
       toast({ title: "Export Error", description: "Video export currently requires a video background uploaded or selected from defaults.", variant: "destructive" });
-      setIsExporting(false); // Ensure exporting state is reset
+      setIsExporting(false); 
       return;
     }
     setIsExporting(true);
@@ -547,7 +540,6 @@ export default function GlassViewPage() {
       URL.revokeObjectURL(url);
       setIsExporting(false);
       toast({ title: "Export Successful", description: "Video downloaded." });
-       // Ensure videos are paused after recording stops
       bgVideo.pause();
       const ovVideo = document.getElementById('overlay-media-export') as HTMLVideoElement;
       if (ovVideo) ovVideo.pause();
@@ -649,7 +641,7 @@ export default function GlassViewPage() {
 
             overlayUrl={overlayUrl}
             overlayType={overlayType}
-            overlayStyle={overlayStyle} // Pass the complete overlayStyle which now includes cursor and transition
+            overlayStyle={overlayStyle} 
             roundedCorners={roundedCorners}
             cornerRadiusPreview={PREVIEW_CORNER_RADIUS_CSS}
             browserBar={browserBar}
@@ -657,7 +649,7 @@ export default function GlassViewPage() {
             browserBarHeightChrome={BROWSER_BAR_HEIGHT_CHROME_PX}
             browserBarHeightSafari={BROWSER_BAR_HEIGHT_SAFARI_PX}
             onOverlayMouseDown={handleOverlayMouseDown}
-            isDragging={isDragging} // Pass isDragging to conditionally change cursor/styles in PreviewArea if needed directly
+            isDragging={isDragging} 
           />
         </main>
 
