@@ -76,7 +76,7 @@ export default function GlassViewPage() {
   }, [overlayFile]);
 
   const overlayStyle: React.CSSProperties = {
-    opacity: browserBar === 'none' ? opacity : 1, // Opacity applied to overlay content if no bar
+    opacity: opacity,
     transform: `translate(${positionX}px, ${positionY}px) scale(${scale}) rotate(${rotation}deg)`,
     width: '100%',
     height: '100%',
@@ -89,7 +89,6 @@ export default function GlassViewPage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const currentBrowserBarHeight = getCurrentBrowserBarHeight();
 
-    // Apply rounded corners clipping to the entire canvas if enabled
     if (roundedCorners) {
       ctx.save();
       ctx.beginPath();
@@ -106,7 +105,6 @@ export default function GlassViewPage() {
       ctx.clip();
     }
 
-    // Draw background
     const bgMedia = document.getElementById('background-media-export') as HTMLImageElement | HTMLVideoElement;
     if (bgMedia) {
         if (backgroundType === 'image' && bgMedia instanceof HTMLImageElement && bgMedia.complete) {
@@ -118,36 +116,28 @@ export default function GlassViewPage() {
         }
     }
     
-    // Save context for overlay transformations
     ctx.save();
-    // Apply global transformations (position, scale, rotation) to the group (browser bar + overlay content)
     const groupCenterX = canvas.width / 2 + positionX;
-    const groupCenterY = canvas.height / 2 + positionY; // This needs to be adjusted if bar exists
+    const groupCenterY = canvas.height / 2 + positionY; 
     
     ctx.translate(groupCenterX, groupCenterY);
     ctx.rotate(rotation * Math.PI / 180);
     ctx.scale(scale, scale);
-    // Translate back, but account for half of the scaled canvas dimensions
-    // The drawing of bar and overlay will happen from new (0,0) relative to this transformed state.
-    // We are scaling the container, so positions are relative to -canvas.width/2, -canvas.height/2
     ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
 
-    // Draw simplified browser bar
     if (browserBar !== 'none') {
-      const barHeight = currentBrowserBarHeight; // This is in unscaled pixels. Scale is applied globally.
-      ctx.fillStyle = browserBar === 'chrome' ? '#DADCE0' : '#F0F0F0';
+      const barHeight = currentBrowserBarHeight; 
+      ctx.fillStyle = browserBar === 'chrome' ? '#DADCE0' : '#F0F0F0'; // Simplified, replace with actual bar drawing if complex
       ctx.fillRect(0, 0, canvas.width, barHeight);
 
-      // Traffic lights (Mac style)
-      ctx.fillStyle = '#FF5F57'; // Close
+      ctx.fillStyle = '#FF5F57'; 
       ctx.beginPath(); ctx.arc(12, barHeight / 2, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#FEBC2E'; // Minimize
+      ctx.fillStyle = '#FEBC2E'; 
       ctx.beginPath(); ctx.arc(32, barHeight / 2, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#28C840'; // Maximize
+      ctx.fillStyle = '#28C840'; 
       ctx.beginPath(); ctx.arc(52, barHeight / 2, 6, 0, Math.PI * 2); ctx.fill();
       
-      // Simplified URL bar
       const urlBarX = 80;
       const urlBarY = barHeight / 2 - 10;
       const urlBarWidth = canvas.width - urlBarX - 20;
@@ -162,10 +152,10 @@ export default function GlassViewPage() {
       ctx.fillText(browserUrlText, urlBarX + 10, urlBarY + urlBarHeight / 2, urlBarWidth - 20);
     }
 
-    // Draw overlay content
     const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement | HTMLVideoElement;
     if (ovMedia) {
-        ctx.globalAlpha = opacity; // Apply opacity to overlay content
+        // Opacity is handled by overlayStyle on the main transformation group
+        // ctx.globalAlpha = opacity; // This was moved
         
         let naturalWidth = 0;
         let naturalHeight = 0;
@@ -178,26 +168,23 @@ export default function GlassViewPage() {
         }
 
         if (naturalWidth > 0 && naturalHeight > 0) {
-            // Adjust overlay content to be below browser bar
             const overlayContentY = browserBar !== 'none' ? currentBrowserBarHeight : 0;
             const overlayContentHeight = canvas.height - overlayContentY;
             
-            // Fit overlay content into its designated area
-            const { drawWidth, drawHeight, offsetX, offsetY } = getContainSize(
-                canvas.width, // Full width for content
-                overlayContentHeight, // Height available for content
+            const { drawWidth, drawHeight, offsetX } = getContainSize( // offsetY from getContainSize is ignored for y-positioning
+                canvas.width, 
+                overlayContentHeight,
                 naturalWidth, 
                 naturalHeight
             );
-            // Draw image, offsetX is relative to its container (0,0), offsetY is relative to its container (overlayContentY,0)
-            ctx.drawImage(ovMedia, offsetX, overlayContentY + offsetY, drawWidth, drawHeight);
+            ctx.drawImage(ovMedia, offsetX, overlayContentY, drawWidth, drawHeight); // Use overlayContentY directly
         }
     }
     
-    ctx.restore(); // Restore context state from overlay transformations
+    ctx.restore(); 
 
     if (roundedCorners) {
-      ctx.restore(); // Restore context if it was clipped due to rounded corners
+      ctx.restore(); 
     }
   }, [
       backgroundType, 
@@ -260,7 +247,6 @@ export default function GlassViewPage() {
       }
     });
 
-    // Use a fixed aspect ratio for export, e.g., 16:9, or derive from background
     const exportWidth = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoWidth || 1280) : ((bgMedia as HTMLImageElement).naturalWidth || 1280);
     const exportHeight = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoHeight || 720) : ((bgMedia as HTMLImageElement).naturalHeight || 720);
     
@@ -314,7 +300,6 @@ export default function GlassViewPage() {
     });
 
     const canvas = document.createElement('canvas');
-    // Use a fixed aspect ratio for export, e.g., 16:9, or derive from background
     const exportWidth = bgVideo.videoWidth || 1280;
     const exportHeight = bgVideo.videoHeight || 720;
 
@@ -422,7 +407,7 @@ export default function GlassViewPage() {
           overlayUrl={overlayUrl}
           overlayType={overlayType}
           overlayStyle={overlayStyle}
-          opacity={opacity}
+          opacity={opacity} // This is now the master opacity for the group
           roundedCorners={roundedCorners}
           cornerRadiusPreview={PREVIEW_CORNER_RADIUS_CSS}
           browserBar={browserBar}

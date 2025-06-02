@@ -10,8 +10,8 @@ interface PreviewAreaProps {
   backgroundType: 'image' | 'video' | null;
   overlayUrl: string | null;
   overlayType: 'image' | 'video' | null;
-  overlayStyle: React.CSSProperties;
-  opacity: number;
+  overlayStyle: React.CSSProperties; // This style includes the master opacity
+  opacity: number; // Kept for potential direct use if needed, but main opacity is in overlayStyle
   roundedCorners: boolean;
   cornerRadiusPreview: string;
   browserBar: 'none' | 'chrome' | 'safari';
@@ -26,7 +26,6 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   overlayUrl,
   overlayType,
   overlayStyle,
-  opacity,
   roundedCorners,
   cornerRadiusPreview,
   browserBar,
@@ -46,7 +45,6 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
       className="w-full h-full max-w-[1280px] aspect-video bg-muted/50 shadow-inner overflow-hidden relative flex items-center justify-center"
       style={previewContainerStyle}
     >
-      {/* Background */}
       {backgroundUrl && backgroundType === 'image' && (
         <Image
           src={backgroundUrl}
@@ -72,26 +70,21 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
         <div className="text-muted-foreground">Upload a background image or video</div>
       )}
 
-      {/* Overlay Container (handles transform, includes browser bar and content) */}
       {overlayUrl && (
         <div
           className="absolute transition-transform duration-100 ease-linear" 
-          style={{
-            ...overlayStyle, // This applies scale, rotation, position
-            // opacity is handled differently based on browser bar
-          }}
+          style={overlayStyle} // Applies scale, rotation, position, AND master opacity
         >
           <div 
             className={cn(
               "w-full h-full flex flex-col",
-              roundedCorners && "overflow-hidden" // Clip children if main container is rounded
+              roundedCorners && "overflow-hidden" 
             )}
             style={{
-                borderRadius: roundedCorners ? cornerRadiusPreview : '0px', // Match outer rounding for internal clipping
-                opacity: browserBar !== 'none' ? opacity : 1, // Apply opacity to this container if bar exists
+                borderRadius: roundedCorners ? cornerRadiusPreview : '0px', 
+                // Opacity removed from here, it's handled by overlayStyle
             }}
             >
-            {/* Browser Bar */}
             {browserBar === 'chrome' && (
               <ChromeBar 
                 urlText={browserUrl} 
@@ -109,15 +102,13 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
               />
             )}
 
-            {/* Overlay Content (Image/Video) */}
             <div 
-                className="flex-1 w-full h-full relative" // Takes remaining space
+                className="flex-1 w-full relative" // h-full removed, flex-1 handles height
                 style={{ 
-                    opacity: browserBar === 'none' ? opacity : 1, // If no bar, apply opacity here
-                    // If bar + rounded, bottom corners of this div should be rounded
+                    // Opacity removed from here
                     borderBottomLeftRadius: roundedCorners ? cornerRadiusPreview : '0px',
                     borderBottomRightRadius: roundedCorners ? cornerRadiusPreview : '0px',
-                    overflow: 'hidden' // Ensures content respects these radii
+                    overflow: 'hidden' 
                 }}
             >
               {overlayType === 'image' && (
@@ -126,8 +117,9 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
                   alt="Overlay Content"
                   layout="fill"
                   objectFit="contain"
-                  className="max-w-full max-h-full"
+                  objectPosition="center top" // Added for top alignment
                   data-ai-hint="user interface"
+                  // className="max-w-full max-h-full" removed
                 />
               )}
               {overlayType === 'video' && (
@@ -138,6 +130,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
                   muted
                   playsInline
                   className="w-full h-full object-contain"
+                  style={{ objectPosition: 'center top' }} // Added for top alignment
                 />
               )}
             </div>
