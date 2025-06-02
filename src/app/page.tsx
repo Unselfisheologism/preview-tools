@@ -12,6 +12,18 @@ const PREVIEW_CORNER_RADIUS_CSS = '20px'; // For CSS preview
 const BROWSER_BAR_HEIGHT_CHROME_PX = 56;
 const BROWSER_BAR_HEIGHT_SAFARI_PX = 44;
 
+interface DefaultBackground {
+  name: string;
+  url: string;
+  hint: string;
+}
+
+const defaultBackgrounds: DefaultBackground[] = [
+  { name: 'Desk Setup', url: 'https://res.cloudinary.com/ddz3nsnq1/image/upload/v1748847957/Image_fx_6_nj1uag.png', hint: 'desk setup' },
+  { name: 'Mountain View', url: 'https://res.cloudinary.com/ddz3nsnq1/image/upload/v1748847959/Image_fx_5_ycbk1t.png', hint: 'mountain view' },
+  { name: 'Urban Cafe', url: 'https://res.cloudinary.com/ddz3nsnq1/image/upload/v1748847938/loutput_i6pat1.jpg', hint: 'urban cafe' },
+];
+
 
 export default function GlassViewPage() {
   const { toast } = useToast();
@@ -19,6 +31,8 @@ export default function GlassViewPage() {
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const [backgroundType, setBackgroundType] = useState<'image' | 'video' | null>(null);
+  const [backgroundHint, setBackgroundHint] = useState<string | null>('abstract background');
+
 
   const [overlayFile, setOverlayFile] = useState<File | null>(null);
   const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
@@ -46,37 +60,64 @@ export default function GlassViewPage() {
   }, [browserBar]);
 
 
-  const handleFileChange = (
-    file: File | null,
-    setUrl: React.Dispatch<React.SetStateAction<string | null>>,
-    setType: React.Dispatch<React.SetStateAction<'image' | 'video' | null>>
-  ) => {
-    if (file) {
-      const newUrl = URL.createObjectURL(file);
-      setUrl(newUrl);
-      setType(file.type.startsWith('image/') ? 'image' : 'video');
-    } else {
-      setUrl(null);
-      setType(null);
-    }
+  const handleBackgroundFileChange = (file: File | null) => {
+    setBackgroundFile(file);
   };
 
   useEffect(() => {
-    handleFileChange(backgroundFile, setBackgroundUrl, setBackgroundType);
+    let objectUrl: string | null = null;
+    if (backgroundFile) {
+      objectUrl = URL.createObjectURL(backgroundFile);
+      setBackgroundUrl(objectUrl);
+      setBackgroundType(backgroundFile.type.startsWith('image/') ? 'image' : 'video');
+      setBackgroundHint('custom background');
+    }
+    // Note: If backgroundFile becomes null (e.g. user clears it or selects a default),
+    // this effect will run, but it won't set backgroundUrl, backgroundType, or backgroundHint here.
+    // The existing backgroundUrl (which might be a default URL) will remain.
+    // The cleanup function will revoke the objectUrl if one was created in this specific effect run.
     return () => {
-      if (backgroundUrl) URL.revokeObjectURL(backgroundUrl);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     };
   }, [backgroundFile]);
 
+  const handleSetDefaultBackground = (defaultBg: DefaultBackground) => {
+    // Setting backgroundFile to null will trigger the useEffect above,
+    // ensuring its cleanup function revokes any existing blob URL from a previous custom file.
+    setBackgroundFile(null); 
+    
+    setBackgroundUrl(defaultBg.url);
+    setBackgroundType('image');
+    setBackgroundHint(defaultBg.hint);
+  };
+
+  const handleOverlayFileChange = (file: File | null) => {
+    setOverlayFile(file);
+  };
+
   useEffect(() => {
-    handleFileChange(overlayFile, setOverlayUrl, setOverlayType);
+    let newUrl: string | null = null;
+    if (overlayFile) {
+      newUrl = URL.createObjectURL(overlayFile);
+      setOverlayUrl(newUrl);
+      setOverlayType(overlayFile.type.startsWith('image/') ? 'image' : 'video');
+    } else {
+      // If overlayFile is cleared, optionally clear overlayUrl and overlayType
+      // setOverlayUrl(null); 
+      // setOverlayType(null);
+    }
     return () => {
-      if (overlayUrl) URL.revokeObjectURL(overlayUrl);
+      if (newUrl) {
+        URL.revokeObjectURL(newUrl);
+      }
     };
   }, [overlayFile]);
 
+
   const handleOverlayMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault(); // Prevent text selection or other default drag behaviors
+    event.preventDefault(); 
     setIsDragging(true);
     setDragStartPoint({
       initialMouseX: event.clientX,
@@ -158,14 +199,13 @@ export default function GlassViewPage() {
     }
     
     ctx.save();
-    // Use overlayPosition for translation
     const groupCenterX = canvas.width / 2 + overlayPosition.x;
     const groupCenterY = canvas.height / 2 + overlayPosition.y; 
     
     ctx.translate(groupCenterX, groupCenterY);
     ctx.rotate(rotation * Math.PI / 180);
     ctx.scale(scale, scale);
-    ctx.translate(-canvas.width / 2, -canvas.height / 2); // Translate back considering the full canvas size for overlay content
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
 
     if (browserBar !== 'none') {
@@ -216,7 +256,6 @@ export default function GlassViewPage() {
                 naturalWidth, 
                 naturalHeight
             );
-            // Draw media relative to the top-left of the (potentially transformed) overlay container
             ctx.drawImage(ovMedia, offsetX, overlayContentY, drawWidth, drawHeight);
         }
     }
@@ -229,10 +268,9 @@ export default function GlassViewPage() {
   }, [
       backgroundType, 
       overlayType, 
-      // opacity, // Opacity is handled by CSS for preview and canvas globalAlpha for export if needed but part of overlayStyle
       scale, 
       rotation, 
-      overlayPosition, // Use overlayPosition
+      overlayPosition, 
       roundedCorners, 
       browserBar, 
       browserUrlText,
@@ -298,10 +336,9 @@ export default function GlassViewPage() {
       toast({ title: "Export Error", description: "Could not get canvas context.", variant: "destructive" });
       return;
     }
-    // Apply master opacity for export
     ctx.globalAlpha = opacity;
     await drawFrameOnCanvas(ctx, canvas);
-    ctx.globalAlpha = 1.0; // Reset globalAlpha
+    ctx.globalAlpha = 1.0; 
 
     canvas.toBlob((blob) => {
       if (blob) {
@@ -388,7 +425,6 @@ export default function GlassViewPage() {
     let animationFrameId: number;
     const duration = bgVideo.duration;
 
-    // Apply master opacity for video export
     ctx.globalAlpha = opacity;
 
     function recordFrame() {
@@ -397,7 +433,7 @@ export default function GlassViewPage() {
         bgVideo.pause();
         if (ovVideo) ovVideo.pause();
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        ctx.globalAlpha = 1.0; // Reset globalAlpha
+        ctx.globalAlpha = 1.0; 
         return;
       }
       drawFrameOnCanvas(ctx, canvas);
@@ -421,15 +457,16 @@ export default function GlassViewPage() {
     <div className="flex flex-col lg:flex-row h-screen bg-background text-foreground overflow-hidden">
       <aside className="w-full lg:w-[380px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
         <ControlsPanel
-          onBackgroundChange={setBackgroundFile}
-          onOverlayChange={setOverlayFile}
+          onBackgroundChange={handleBackgroundFileChange}
+          defaultBackgrounds={defaultBackgrounds}
+          onSetDefaultBackground={handleSetDefaultBackground}
+          onOverlayChange={handleOverlayFileChange}
           opacity={opacity}
           onOpacityChange={setOpacity}
           scale={scale}
           onScaleChange={setScale}
           rotation={rotation}
           onRotationChange={setRotation}
-          // positionX and positionY props removed
           roundedCorners={roundedCorners}
           onRoundedCornersChange={setRoundedCorners}
           browserBar={browserBar}
@@ -446,6 +483,7 @@ export default function GlassViewPage() {
         <PreviewArea
           backgroundUrl={backgroundUrl}
           backgroundType={backgroundType}
+          backgroundHint={backgroundHint}
           overlayUrl={overlayUrl}
           overlayType={overlayType}
           overlayStyle={overlayStyle}

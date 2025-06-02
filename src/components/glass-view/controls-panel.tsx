@@ -8,10 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Image as ImageIcon, Video, Move, Scale as ScaleIcon, RotateCw, CornerRightUp, Chrome, Compass } from 'lucide-react';
+import { Download, Image as ImageIcon, Video, Move, Scale as ScaleIcon, RotateCw, CornerRightUp, Chrome, Compass, Layers } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
+interface DefaultBackgroundInfo {
+  name: string;
+  url: string;
+  hint: string;
+}
 interface ControlsPanelProps {
   onBackgroundChange: (file: File | null) => void;
+  defaultBackgrounds: DefaultBackgroundInfo[];
+  onSetDefaultBackground: (defaultBg: DefaultBackgroundInfo) => void;
   onOverlayChange: (file: File | null) => void;
   opacity: number;
   onOpacityChange: (value: number) => void;
@@ -19,7 +27,6 @@ interface ControlsPanelProps {
   onScaleChange: (value: number) => void;
   rotation: number;
   onRotationChange: (value: number) => void;
-  // positionX, positionY, onPositionXChange, onPositionYChange removed
   roundedCorners: boolean;
   onRoundedCornersChange: (value: boolean) => void;
   browserBar: 'none' | 'chrome' | 'safari';
@@ -33,6 +40,8 @@ interface ControlsPanelProps {
 
 const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onBackgroundChange,
+  defaultBackgrounds,
+  onSetDefaultBackground,
   onOverlayChange,
   opacity,
   onOpacityChange,
@@ -55,14 +64,30 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-primary" />
-            Media Upload
+            <Layers className="w-5 h-5 text-primary" />
+            Media & Background
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Default Backgrounds</Label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {defaultBackgrounds.map((bg) => (
+                <Button
+                  key={bg.name}
+                  variant="outline"
+                  onClick={() => onSetDefaultBackground(bg)}
+                  className="text-xs h-auto py-2 px-3"
+                >
+                  {bg.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Separator/>
           <FileUpload
             id="background-upload"
-            label="Background (Image/Video)"
+            label="Upload Custom Background"
             accept="image/*,video/*"
             onFileChange={onBackgroundChange}
           />
@@ -78,7 +103,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Move className="w-5 h-5 text-primary" /> {/* Changed icon from Blend to Move */}
+            <Move className="w-5 h-5 text-primary" /> 
             Overlay Adjustments
           </CardTitle>
         </CardHeader>
@@ -119,7 +144,6 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
               className="mt-1"
             />
           </div>
-          {/* Position X and Y Input fields removed */}
         </CardContent>
       </Card>
       

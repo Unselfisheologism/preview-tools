@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 interface PreviewAreaProps {
   backgroundUrl: string | null;
   backgroundType: 'image' | 'video' | null;
+  backgroundHint: string | null;
   overlayUrl: string | null;
   overlayType: 'image' | 'video' | null;
   overlayStyle: React.CSSProperties; 
@@ -18,13 +19,14 @@ interface PreviewAreaProps {
   browserUrl: string;
   browserBarHeightChrome: number;
   browserBarHeightSafari: number;
-  onOverlayMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void; // New prop
-  isDragging: boolean; // New prop
+  onOverlayMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void; 
+  isDragging: boolean; 
 }
 
 const PreviewArea: React.FC<PreviewAreaProps> = ({
   backgroundUrl,
   backgroundType,
+  backgroundHint,
   overlayUrl,
   overlayType,
   overlayStyle,
@@ -34,8 +36,8 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   browserUrl,
   browserBarHeightChrome,
   browserBarHeightSafari,
-  onOverlayMouseDown, // New prop
-  isDragging, // New prop
+  onOverlayMouseDown, 
+  isDragging, 
 }) => {
   const previewContainerStyle: React.CSSProperties = {
     borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem', 
@@ -70,8 +72,9 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
           layout="fill"
           objectFit="contain"
           className="transition-opacity duration-300 ease-in-out"
-          data-ai-hint="abstract background"
-          priority
+          data-ai-hint={backgroundHint || 'abstract background'}
+          priority={backgroundUrl.startsWith('http')} // Prioritize external images as they might be chosen first
+          unoptimized={backgroundUrl.startsWith('blob:')} // Don't optimize blob URLs
         />
       )}
       {backgroundUrl && backgroundType === 'video' && (
@@ -85,17 +88,17 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
         />
       )}
       {!backgroundUrl && (
-        <div className="text-muted-foreground">Upload a background image or video</div>
+        <div className="text-muted-foreground">Upload or select a default background</div>
       )}
 
       {overlayUrl && (
         <div 
           className={cn(
-            "absolute w-full h-full", // Removed transition-transform
+            "absolute w-full h-full", 
             isDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
           style={overlayStyle}
-          onMouseDown={onOverlayMouseDown} // Attach mouse down handler
+          onMouseDown={onOverlayMouseDown} 
         >
           <div 
             className="w-full h-full flex flex-col"
@@ -133,6 +136,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
                   objectFit="contain"
                   objectPosition="center top"
                   data-ai-hint="user interface"
+                  unoptimized={overlayUrl.startsWith('blob:')}
                 />
               )}
               {overlayType === 'video' && (
