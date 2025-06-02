@@ -68,7 +68,7 @@ const OverlayControls: React.FC<OverlayControlsProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Move className="w-5 h-5 text-primary" /> 
+            <Move className="w-5 h-5 text-primary" />
             Overlay Adjustments
           </CardTitle>
         </CardHeader>
@@ -124,9 +124,12 @@ const OverlayControls: React.FC<OverlayControlsProps> = ({
               className="mt-1"
             />
           </div>
+          <p className="text-xs text-muted-foreground pt-2">
+            Change Position by Dragging the Overlay.
+          </p>
         </CardContent>
       </Card>
-      
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
