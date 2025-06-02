@@ -12,7 +12,6 @@ interface PreviewAreaProps {
   overlayUrl: string | null;
   overlayType: 'image' | 'video' | null;
   overlayStyle: React.CSSProperties; 
-  opacity: number; 
   roundedCorners: boolean;
   cornerRadiusPreview: string;
   browserBar: 'none' | 'chrome' | 'safari';
@@ -29,7 +28,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   backgroundHint,
   overlayUrl,
   overlayType,
-  overlayStyle,
+  overlayStyle, // This now includes opacity, transform, and filter
   roundedCorners,
   cornerRadiusPreview,
   browserBar,
@@ -43,22 +42,42 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
     borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem', 
   };
 
+  // This style is for the container that clips the browser bar and media content together.
+  const overlayClipContainerStyle: React.CSSProperties = {
+    borderRadius: roundedCorners ? cornerRadiusPreview : '0px',
+    overflow: roundedCorners ? 'hidden' : 'visible',
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+  };
+
+  // This style is for the direct container of the overlay media (image/video).
+  // It ensures the media itself is clipped if necessary, especially its bottom corners.
   const overlayMediaContainerDynamicStyle: React.CSSProperties = {
-    overflow: 'hidden', 
+    flex: 1,
+    width: '100%',
+    position: 'relative', // Needed for next/image layout="fill"
+    overflow: 'hidden', // Always clip media within this container
   };
 
   if (roundedCorners) {
     if (browserBar === 'none') {
-      overlayMediaContainerDynamicStyle.borderRadius = cornerRadiusPreview;
+      // If no browser bar, media container gets all corners rounded from its parent (overlayClipContainerStyle)
+      // No specific style needed here as parent handles it.
     } else {
-      overlayMediaContainerDynamicStyle.borderBottomLeftRadius = cornerRadiusPreview;
-      overlayMediaContainerDynamicStyle.borderBottomRightRadius = cornerRadiusPreview;
-      overlayMediaContainerDynamicStyle.borderTopLeftRadius = '0px'; 
-      overlayMediaContainerDynamicStyle.borderTopRightRadius = '0px'; 
+      // If browser bar is present, media container only needs bottom corners rounded.
+      // Top corners are flat against the browser bar.
+      // The parent overlayClipContainerStyle handles the overall top rounding.
+       overlayMediaContainerDynamicStyle.borderBottomLeftRadius = cornerRadiusPreview;
+       overlayMediaContainerDynamicStyle.borderBottomRightRadius = cornerRadiusPreview;
+       overlayMediaContainerDynamicStyle.borderTopLeftRadius = '0px';
+       overlayMediaContainerDynamicStyle.borderTopRightRadius = '0px';
     }
   } else {
-    overlayMediaContainerDynamicStyle.borderRadius = '0px'; 
+    overlayMediaContainerDynamicStyle.borderRadius = '0px';
   }
+
 
   return (
     <div
@@ -73,8 +92,8 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
           objectFit="contain"
           className="transition-opacity duration-300 ease-in-out"
           data-ai-hint={backgroundHint || 'abstract background'}
-          priority={backgroundUrl.startsWith('http')} // Prioritize external images as they might be chosen first
-          unoptimized={backgroundUrl.startsWith('blob:')} // Don't optimize blob URLs
+          priority={backgroundUrl.startsWith('http')} 
+          unoptimized={backgroundUrl.startsWith('blob:')} 
         />
       )}
       {backgroundUrl && backgroundType === 'video' && (
@@ -94,19 +113,14 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
       {overlayUrl && (
         <div 
           className={cn(
-            "absolute w-full h-full", 
+            "absolute", // Removed w-full h-full, let overlayStyle dictate size if needed, or rely on content.
+                        // overlayStyle itself has w/h 100%
             isDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
-          style={overlayStyle}
+          style={overlayStyle} // This style has opacity, transform, and filter.
           onMouseDown={onOverlayMouseDown} 
         >
-          <div 
-            className="w-full h-full flex flex-col"
-            style={{
-              borderRadius: roundedCorners ? cornerRadiusPreview : '0px', 
-              overflow: roundedCorners ? 'hidden' : 'visible', 
-            }}
-          >
+          <div style={overlayClipContainerStyle}>
             {browserBar === 'chrome' && (
               <ChromeBar
                 urlText={browserUrl}
@@ -125,7 +139,6 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
             )}
 
             <div
-              className="flex-1 w-full relative" 
               style={overlayMediaContainerDynamicStyle}
             >
               {overlayType === 'image' && (

@@ -45,6 +45,7 @@ export default function GlassViewPage() {
   const [opacity, setOpacity] = useState(0.7);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [blurIntensity, setBlurIntensity] = useState(0);
   
   const [overlayPosition, setOverlayPosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -154,6 +155,7 @@ export default function GlassViewPage() {
   const overlayStyle: React.CSSProperties = {
     opacity: opacity,
     transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px) scale(${scale}) rotate(${rotation}deg)`,
+    filter: blurIntensity > 0 ? `blur(${blurIntensity}px)` : 'none',
     width: '100%',
     height: '100%',
     position: 'absolute',
@@ -192,7 +194,12 @@ export default function GlassViewPage() {
         }
     }
     
-    ctx.save();
+    // Overlay group (opacity, transform, blur)
+    ctx.save(); // Outer save for opacity and filter state for the overlay group
+    ctx.globalAlpha = opacity;
+
+    // Inner save for transformations (translate, rotate, scale) and blur filter
+    ctx.save(); 
     const groupCenterX = canvas.width / 2 + overlayPosition.x;
     const groupCenterY = canvas.height / 2 + overlayPosition.y; 
     
@@ -201,6 +208,9 @@ export default function GlassViewPage() {
     ctx.scale(scale, scale);
     ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
+    if (blurIntensity > 0) {
+      ctx.filter = `blur(${blurIntensity}px)`;
+    }
 
     if (browserBar !== 'none') {
       const barHeight = currentBrowserBarHeight; 
@@ -254,7 +264,8 @@ export default function GlassViewPage() {
         }
     }
     
-    ctx.restore(); 
+    ctx.restore(); // Restores transform and filter (if set)
+    ctx.restore(); // Restores globalAlpha 
 
     if (roundedCorners) {
       ctx.restore(); 
@@ -262,8 +273,10 @@ export default function GlassViewPage() {
   }, [
       backgroundType, 
       overlayType, 
+      opacity,
       scale, 
       rotation, 
+      blurIntensity,
       overlayPosition, 
       roundedCorners, 
       browserBar, 
@@ -330,9 +343,8 @@ export default function GlassViewPage() {
       toast({ title: "Export Error", description: "Could not get canvas context.", variant: "destructive" });
       return;
     }
-    ctx.globalAlpha = opacity;
+    
     await drawFrameOnCanvas(ctx, canvas);
-    ctx.globalAlpha = 1.0; 
 
     canvas.toBlob((blob) => {
       if (blob) {
@@ -351,7 +363,7 @@ export default function GlassViewPage() {
       setIsExporting(false);
     }, 'image/png');
 
-  }, [backgroundUrl, backgroundType, opacity, drawFrameOnCanvas, toast]);
+  }, [backgroundUrl, backgroundType, drawFrameOnCanvas, toast]);
 
   const handleExportVideo = useCallback(async () => {
     if (!backgroundUrl || backgroundType !== 'video') {
@@ -419,7 +431,6 @@ export default function GlassViewPage() {
     let animationFrameId: number;
     const duration = bgVideo.duration;
 
-    ctx.globalAlpha = opacity;
 
     function recordFrame() {
       if (!isExporting || bgVideo.currentTime >= duration || bgVideo.paused) {
@@ -427,7 +438,6 @@ export default function GlassViewPage() {
         bgVideo.pause();
         if (ovVideo) ovVideo.pause();
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        ctx.globalAlpha = 1.0; 
         return;
       }
       drawFrameOnCanvas(ctx, canvas);
@@ -435,7 +445,7 @@ export default function GlassViewPage() {
     }
     animationFrameId = requestAnimationFrame(recordFrame);
 
-  }, [backgroundUrl, backgroundType, overlayType, opacity, drawFrameOnCanvas, toast, isExporting]);
+  }, [backgroundUrl, backgroundType, overlayType, drawFrameOnCanvas, toast, isExporting]);
 
 
   const HiddenMediaForExport = () => (
@@ -459,6 +469,8 @@ export default function GlassViewPage() {
             onScaleChange={setScale}
             rotation={rotation}
             onRotationChange={setRotation}
+            blurIntensity={blurIntensity}
+            onBlurIntensityChange={setBlurIntensity}
             roundedCorners={roundedCorners}
             onRoundedCornersChange={setRoundedCorners}
             browserBar={browserBar}
@@ -476,7 +488,6 @@ export default function GlassViewPage() {
             overlayUrl={overlayUrl}
             overlayType={overlayType}
             overlayStyle={overlayStyle}
-            opacity={opacity} 
             roundedCorners={roundedCorners}
             cornerRadiusPreview={PREVIEW_CORNER_RADIUS_CSS}
             browserBar={browserBar}
@@ -522,5 +533,4 @@ export default function GlassViewPage() {
   );
 }
     
-
     

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Layers, Move, CornerRightUp, Chrome, Compass } from 'lucide-react';
+import { Layers, Move, CornerRightUp, Chrome, Compass, Filter } from 'lucide-react';
 
 interface OverlayControlsProps {
   onOverlayChange: (file: File | null) => void;
@@ -19,6 +19,8 @@ interface OverlayControlsProps {
   onScaleChange: (value: number) => void;
   rotation: number;
   onRotationChange: (value: number) => void;
+  blurIntensity: number;
+  onBlurIntensityChange: (value: number) => void;
   roundedCorners: boolean;
   onRoundedCornersChange: (value: boolean) => void;
   browserBar: 'none' | 'chrome' | 'safari';
@@ -35,6 +37,8 @@ const OverlayControls: React.FC<OverlayControlsProps> = ({
   onScaleChange,
   rotation,
   onRotationChange,
+  blurIntensity,
+  onBlurIntensityChange,
   roundedCorners,
   onRoundedCornersChange,
   browserBar,
@@ -102,6 +106,21 @@ const OverlayControls: React.FC<OverlayControlsProps> = ({
               step={1}
               value={[rotation]}
               onValueChange={(value) => onRotationChange(value[0])}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="blur-slider" className="text-sm flex items-center">
+              <Filter className="w-3.5 h-3.5 mr-1.5" />
+              Blur: {blurIntensity}px
+            </Label>
+            <Slider
+              id="blur-slider"
+              min={0}
+              max={20}
+              step={1}
+              value={[blurIntensity]}
+              onValueChange={(value) => onBlurIntensityChange(value[0])}
               className="mt-1"
             />
           </div>
