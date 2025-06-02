@@ -120,14 +120,13 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
                 </div>
                 {backgroundMode === 'solid' && (
                   <div className="pl-6 space-y-2">
-                    <Label htmlFor="solid-color-input" className="text-xs">Color (e.g., #RRGGBB, red)</Label>
+                    <Label htmlFor="solid-color-input" className="text-xs">Pick Solid Color</Label>
                     <Input
                       id="solid-color-input"
-                      type="text"
+                      type="color"
                       value={solidBackgroundColor}
                       onChange={(e) => onSolidBackgroundColorChange(e.target.value)}
-                      placeholder="#FFFFFF"
-                      className="h-8"
+                      className="h-10 w-full p-1" // Adjusted for color type
                     />
                   </div>
                 )}
