@@ -10,8 +10,8 @@ interface PreviewAreaProps {
   backgroundType: 'image' | 'video' | null;
   overlayUrl: string | null;
   overlayType: 'image' | 'video' | null;
-  overlayStyle: React.CSSProperties; // This style includes the master opacity
-  opacity: number; // Kept for potential direct use if needed, but main opacity is in overlayStyle
+  overlayStyle: React.CSSProperties; // This style includes the master opacity + transforms
+  opacity: number; // Kept for potential direct use if needed
   roundedCorners: boolean;
   cornerRadiusPreview: string;
   browserBar: 'none' | 'chrome' | 'safari';
@@ -34,14 +34,11 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   browserBarHeightSafari,
 }) => {
   const previewContainerStyle: React.CSSProperties = {
-    borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem',
-    transition: 'border-radius 0.3s ease-in-out',
+    borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem', // Main viewport rounding
   };
 
-  const currentBrowserBarHeight = browserBar === 'chrome' ? browserBarHeightChrome : browserBar === 'safari' ? browserBarHeightSafari : 0;
-
   return (
-    <div 
+    <div
       className="w-full h-full max-w-[1280px] aspect-video bg-muted/50 shadow-inner overflow-hidden relative flex items-center justify-center"
       style={previewContainerStyle}
     >
@@ -71,45 +68,40 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
       )}
 
       {overlayUrl && (
-        <div
-          className="absolute transition-transform duration-100 ease-linear" 
-          style={overlayStyle} // Applies scale, rotation, position, AND master opacity
+        <div // Transform & Opacity container for the overlay group
+          className="absolute transition-transform duration-100 ease-linear w-full h-full" // Ensure w-full h-full
+          style={overlayStyle}
         >
-          <div 
-            className={cn(
-              "w-full h-full flex flex-col",
-              roundedCorners && "overflow-hidden" 
-            )}
+          <div // Groups Browser Bar + Content. This div will be rounded and clip its children.
+            className="w-full h-full flex flex-col"
             style={{
-                borderRadius: roundedCorners ? cornerRadiusPreview : '0px', 
-                // Opacity removed from here, it's handled by overlayStyle
+              borderRadius: roundedCorners ? cornerRadiusPreview : '0px',
+              overflow: roundedCorners ? 'hidden' : 'visible', // This clips children
             }}
-            >
+          >
             {browserBar === 'chrome' && (
-              <ChromeBar 
-                urlText={browserUrl} 
-                height={browserBarHeightChrome} 
-                roundedTop={roundedCorners} 
-                cornerRadius={cornerRadiusPreview} 
+              <ChromeBar
+                urlText={browserUrl}
+                height={browserBarHeightChrome}
+                roundedTop={roundedCorners} // Bar itself rounds its top background
+                cornerRadius={cornerRadiusPreview}
               />
             )}
             {browserBar === 'safari' && (
-              <SafariBar 
-                urlText={browserUrl} 
-                height={browserBarHeightSafari} 
-                roundedTop={roundedCorners} 
-                cornerRadius={cornerRadiusPreview} 
+              <SafariBar
+                urlText={browserUrl}
+                height={browserBarHeightSafari}
+                roundedTop={roundedCorners} // Bar itself rounds its top background
+                cornerRadius={cornerRadiusPreview}
               />
             )}
 
-            <div 
-                className="flex-1 w-full relative" // h-full removed, flex-1 handles height
-                style={{ 
-                    // Opacity removed from here
-                    borderBottomLeftRadius: roundedCorners ? cornerRadiusPreview : '0px',
-                    borderBottomRightRadius: roundedCorners ? cornerRadiusPreview : '0px',
-                    overflow: 'hidden' 
-                }}
+            {/* Overlay Content Area. Relies on parent for rounded clipping. */}
+            <div
+              className="flex-1 w-full relative" // Still needs to be relative for next/image layout="fill"
+              style={{
+                overflow: 'hidden', // Clips the actual Image/Video within this flex item
+              }}
             >
               {overlayType === 'image' && (
                 <Image
@@ -117,9 +109,8 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
                   alt="Overlay Content"
                   layout="fill"
                   objectFit="contain"
-                  objectPosition="center top" // Added for top alignment
+                  objectPosition="center top"
                   data-ai-hint="user interface"
-                  // className="max-w-full max-h-full" removed
                 />
               )}
               {overlayType === 'video' && (
@@ -129,8 +120,8 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
                   loop
                   muted
                   playsInline
-                  className="w-full h-full object-contain"
-                  style={{ objectPosition: 'center top' }} // Added for top alignment
+                  className="w-full h-full object-contain" // Video takes full space of this div
+                  style={{ objectPosition: 'center top' }}
                 />
               )}
             </div>
@@ -142,5 +133,3 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
 };
 
 export default PreviewArea;
-
-    
