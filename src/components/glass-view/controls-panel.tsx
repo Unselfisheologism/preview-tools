@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Image as ImageIcon, Video, Move, Scale as ScaleIcon, RotateCw, Blend, CornerRightUp, Chrome, Compass } from 'lucide-react';
+import { Download, Image as ImageIcon, Video, Move, Scale as ScaleIcon, RotateCw, CornerRightUp, Chrome, Compass } from 'lucide-react';
 
 interface ControlsPanelProps {
   onBackgroundChange: (file: File | null) => void;
@@ -19,10 +19,7 @@ interface ControlsPanelProps {
   onScaleChange: (value: number) => void;
   rotation: number;
   onRotationChange: (value: number) => void;
-  positionX: number;
-  onPositionXChange: (value: number) => void;
-  positionY: number;
-  onPositionYChange: (value: number) => void;
+  // positionX, positionY, onPositionXChange, onPositionYChange removed
   roundedCorners: boolean;
   onRoundedCornersChange: (value: boolean) => void;
   browserBar: 'none' | 'chrome' | 'safari';
@@ -43,10 +40,6 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onScaleChange,
   rotation,
   onRotationChange,
-  positionX,
-  onPositionXChange,
-  positionY,
-  onPositionYChange,
   roundedCorners,
   onRoundedCornersChange,
   browserBar,
@@ -85,7 +78,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Blend className="w-5 h-5 text-primary" />
+            <Move className="w-5 h-5 text-primary" /> {/* Changed icon from Blend to Move */}
             Overlay Adjustments
           </CardTitle>
         </CardHeader>
@@ -126,28 +119,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
               className="mt-1"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="position-x" className="text-sm">Position X: {positionX}px</Label>
-              <Input
-                id="position-x"
-                type="number"
-                value={positionX}
-                onChange={(e) => onPositionXChange(parseInt(e.target.value, 10) || 0)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="position-y" className="text-sm">Position Y: {positionY}px</Label>
-              <Input
-                id="position-y"
-                type="number"
-                value={positionY}
-                onChange={(e) => onPositionYChange(parseInt(e.target.value, 10) || 0)}
-                className="mt-1"
-              />
-            </div>
-          </div>
+          {/* Position X and Y Input fields removed */}
         </CardContent>
       </Card>
       
@@ -218,5 +190,3 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
 };
 
 export default ControlsPanel;
-
-    

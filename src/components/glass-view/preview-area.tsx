@@ -10,14 +10,16 @@ interface PreviewAreaProps {
   backgroundType: 'image' | 'video' | null;
   overlayUrl: string | null;
   overlayType: 'image' | 'video' | null;
-  overlayStyle: React.CSSProperties; // This style includes the master opacity + transforms
-  opacity: number; // Kept for potential direct use if needed
+  overlayStyle: React.CSSProperties; 
+  opacity: number; 
   roundedCorners: boolean;
   cornerRadiusPreview: string;
   browserBar: 'none' | 'chrome' | 'safari';
   browserUrl: string;
   browserBarHeightChrome: number;
   browserBarHeightSafari: number;
+  onOverlayMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void; // New prop
+  isDragging: boolean; // New prop
 }
 
 const PreviewArea: React.FC<PreviewAreaProps> = ({
@@ -32,28 +34,28 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   browserUrl,
   browserBarHeightChrome,
   browserBarHeightSafari,
+  onOverlayMouseDown, // New prop
+  isDragging, // New prop
 }) => {
   const previewContainerStyle: React.CSSProperties = {
-    borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem', // Main viewport rounding
+    borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem', 
   };
 
   const overlayMediaContainerDynamicStyle: React.CSSProperties = {
-    overflow: 'hidden', // Always clip the media itself
+    overflow: 'hidden', 
   };
 
   if (roundedCorners) {
     if (browserBar === 'none') {
-      // If no browser bar, this media container defines the whole overlay shape
       overlayMediaContainerDynamicStyle.borderRadius = cornerRadiusPreview;
     } else {
-      // If there IS a browser bar, this container only needs bottom rounding
       overlayMediaContainerDynamicStyle.borderBottomLeftRadius = cornerRadiusPreview;
       overlayMediaContainerDynamicStyle.borderBottomRightRadius = cornerRadiusPreview;
-      overlayMediaContainerDynamicStyle.borderTopLeftRadius = '0px'; // Flat top to meet bar
-      overlayMediaContainerDynamicStyle.borderTopRightRadius = '0px'; // Flat top to meet bar
+      overlayMediaContainerDynamicStyle.borderTopLeftRadius = '0px'; 
+      overlayMediaContainerDynamicStyle.borderTopRightRadius = '0px'; 
     }
   } else {
-    overlayMediaContainerDynamicStyle.borderRadius = '0px'; // No rounding
+    overlayMediaContainerDynamicStyle.borderRadius = '0px'; 
   }
 
   return (
@@ -87,15 +89,19 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
       )}
 
       {overlayUrl && (
-        <div // Transform & Opacity container for the overlay group
-          className="absolute transition-transform duration-100 ease-linear w-full h-full" 
+        <div 
+          className={cn(
+            "absolute w-full h-full", // Removed transition-transform
+            isDragging ? 'cursor-grabbing' : 'cursor-grab'
+          )}
           style={overlayStyle}
+          onMouseDown={onOverlayMouseDown} // Attach mouse down handler
         >
-          <div // This div groups Browser Bar + Content. It needs to clip if rounded.
+          <div 
             className="w-full h-full flex flex-col"
             style={{
-              borderRadius: roundedCorners ? cornerRadiusPreview : '0px', // Overall rounding for the group
-              overflow: roundedCorners ? 'hidden' : 'visible', // This clips children to the borderRadius
+              borderRadius: roundedCorners ? cornerRadiusPreview : '0px', 
+              overflow: roundedCorners ? 'hidden' : 'visible', 
             }}
           >
             {browserBar === 'chrome' && (
@@ -115,7 +121,6 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
               />
             )}
 
-            {/* Overlay Content Area. */}
             <div
               className="flex-1 w-full relative" 
               style={overlayMediaContainerDynamicStyle}

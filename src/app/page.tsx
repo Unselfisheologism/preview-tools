@@ -6,9 +6,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import ControlsPanel from '@/components/glass-view/controls-panel';
 import PreviewArea from '@/components/glass-view/preview-area';
 import { useToast } from "@/hooks/use-toast";
-import { ChromeBar } from '@/components/glass-view/browser-bars/chrome-bar';
-import { SafariBar } from '@/components/glass-view/browser-bars/safari-bar';
-
 
 const EXPORT_CORNER_RADIUS = 30; // For canvas export
 const PREVIEW_CORNER_RADIUS_CSS = '20px'; // For CSS preview
@@ -30,8 +27,11 @@ export default function GlassViewPage() {
   const [opacity, setOpacity] = useState(0.7);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
-  const [positionX, setPositionX] = useState(0);
-  const [positionY, setPositionY] = useState(0);
+  
+  const [overlayPosition, setOverlayPosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartPoint, setDragStartPoint] = useState<{ initialMouseX: number, initialMouseY: number, initialOverlayX: number, initialOverlayY: number } | null>(null);
+
   const [roundedCorners, setRoundedCorners] = useState(false);
   const [browserBar, setBrowserBar] = useState<'none' | 'chrome' | 'safari'>('none');
   const [browserUrlText, setBrowserUrlText] = useState('example.com');
@@ -75,9 +75,50 @@ export default function GlassViewPage() {
     };
   }, [overlayFile]);
 
+  const handleOverlayMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault(); // Prevent text selection or other default drag behaviors
+    setIsDragging(true);
+    setDragStartPoint({
+      initialMouseX: event.clientX,
+      initialMouseY: event.clientY,
+      initialOverlayX: overlayPosition.x,
+      initialOverlayY: overlayPosition.y,
+    });
+  };
+
+  useEffect(() => {
+    const handleGlobalMouseMove = (event: MouseEvent) => {
+      if (isDragging && dragStartPoint) {
+        const deltaX = event.clientX - dragStartPoint.initialMouseX;
+        const deltaY = event.clientY - dragStartPoint.initialMouseY;
+        setOverlayPosition({
+          x: dragStartPoint.initialOverlayX + deltaX,
+          y: dragStartPoint.initialOverlayY + deltaY,
+        });
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        setDragStartPoint(null);
+      }
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, dragStartPoint]);
+
   const overlayStyle: React.CSSProperties = {
     opacity: opacity,
-    transform: `translate(${positionX}px, ${positionY}px) scale(${scale}) rotate(${rotation}deg)`,
+    transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px) scale(${scale}) rotate(${rotation}deg)`,
     width: '100%',
     height: '100%',
     position: 'absolute',
@@ -117,18 +158,19 @@ export default function GlassViewPage() {
     }
     
     ctx.save();
-    const groupCenterX = canvas.width / 2 + positionX;
-    const groupCenterY = canvas.height / 2 + positionY; 
+    // Use overlayPosition for translation
+    const groupCenterX = canvas.width / 2 + overlayPosition.x;
+    const groupCenterY = canvas.height / 2 + overlayPosition.y; 
     
     ctx.translate(groupCenterX, groupCenterY);
     ctx.rotate(rotation * Math.PI / 180);
     ctx.scale(scale, scale);
-    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2); // Translate back considering the full canvas size for overlay content
 
 
     if (browserBar !== 'none') {
       const barHeight = currentBrowserBarHeight; 
-      ctx.fillStyle = browserBar === 'chrome' ? '#DADCE0' : '#F0F0F0'; // Simplified, replace with actual bar drawing if complex
+      ctx.fillStyle = browserBar === 'chrome' ? '#DADCE0' : '#F0F0F0'; 
       ctx.fillRect(0, 0, canvas.width, barHeight);
 
       ctx.fillStyle = '#FF5F57'; 
@@ -154,9 +196,6 @@ export default function GlassViewPage() {
 
     const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement | HTMLVideoElement;
     if (ovMedia) {
-        // Opacity is handled by overlayStyle on the main transformation group
-        // ctx.globalAlpha = opacity; // This was moved
-        
         let naturalWidth = 0;
         let naturalHeight = 0;
         if (overlayType === 'image' && ovMedia instanceof HTMLImageElement && ovMedia.complete) {
@@ -171,13 +210,14 @@ export default function GlassViewPage() {
             const overlayContentY = browserBar !== 'none' ? currentBrowserBarHeight : 0;
             const overlayContentHeight = canvas.height - overlayContentY;
             
-            const { drawWidth, drawHeight, offsetX } = getContainSize( // offsetY from getContainSize is ignored for y-positioning
+            const { drawWidth, drawHeight, offsetX } = getContainSize(
                 canvas.width, 
                 overlayContentHeight,
                 naturalWidth, 
                 naturalHeight
             );
-            ctx.drawImage(ovMedia, offsetX, overlayContentY, drawWidth, drawHeight); // Use overlayContentY directly
+            // Draw media relative to the top-left of the (potentially transformed) overlay container
+            ctx.drawImage(ovMedia, offsetX, overlayContentY, drawWidth, drawHeight);
         }
     }
     
@@ -189,11 +229,10 @@ export default function GlassViewPage() {
   }, [
       backgroundType, 
       overlayType, 
-      opacity, 
+      // opacity, // Opacity is handled by CSS for preview and canvas globalAlpha for export if needed but part of overlayStyle
       scale, 
       rotation, 
-      positionX, 
-      positionY, 
+      overlayPosition, // Use overlayPosition
       roundedCorners, 
       browserBar, 
       browserUrlText,
@@ -259,8 +298,10 @@ export default function GlassViewPage() {
       toast({ title: "Export Error", description: "Could not get canvas context.", variant: "destructive" });
       return;
     }
-
+    // Apply master opacity for export
+    ctx.globalAlpha = opacity;
     await drawFrameOnCanvas(ctx, canvas);
+    ctx.globalAlpha = 1.0; // Reset globalAlpha
 
     canvas.toBlob((blob) => {
       if (blob) {
@@ -279,7 +320,7 @@ export default function GlassViewPage() {
       setIsExporting(false);
     }, 'image/png');
 
-  }, [backgroundUrl, backgroundType, drawFrameOnCanvas, toast]);
+  }, [backgroundUrl, backgroundType, opacity, drawFrameOnCanvas, toast]);
 
   const handleExportVideo = useCallback(async () => {
     if (!backgroundUrl || backgroundType !== 'video') {
@@ -347,12 +388,16 @@ export default function GlassViewPage() {
     let animationFrameId: number;
     const duration = bgVideo.duration;
 
+    // Apply master opacity for video export
+    ctx.globalAlpha = opacity;
+
     function recordFrame() {
       if (!isExporting || bgVideo.currentTime >= duration || bgVideo.paused) {
         if(recorder.state === "recording") recorder.stop();
         bgVideo.pause();
         if (ovVideo) ovVideo.pause();
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        ctx.globalAlpha = 1.0; // Reset globalAlpha
         return;
       }
       drawFrameOnCanvas(ctx, canvas);
@@ -360,7 +405,7 @@ export default function GlassViewPage() {
     }
     animationFrameId = requestAnimationFrame(recordFrame);
 
-  }, [backgroundUrl, backgroundType, overlayType, drawFrameOnCanvas, toast, isExporting]);
+  }, [backgroundUrl, backgroundType, overlayType, opacity, drawFrameOnCanvas, toast, isExporting]);
 
 
   const HiddenMediaForExport = () => (
@@ -384,10 +429,7 @@ export default function GlassViewPage() {
           onScaleChange={setScale}
           rotation={rotation}
           onRotationChange={setRotation}
-          positionX={positionX}
-          onPositionXChange={setPositionX}
-          positionY={positionY}
-          onPositionYChange={setPositionY}
+          // positionX and positionY props removed
           roundedCorners={roundedCorners}
           onRoundedCornersChange={setRoundedCorners}
           browserBar={browserBar}
@@ -407,18 +449,19 @@ export default function GlassViewPage() {
           overlayUrl={overlayUrl}
           overlayType={overlayType}
           overlayStyle={overlayStyle}
-          opacity={opacity} // This is now the master opacity for the group
+          opacity={opacity} 
           roundedCorners={roundedCorners}
           cornerRadiusPreview={PREVIEW_CORNER_RADIUS_CSS}
           browserBar={browserBar}
           browserUrl={browserUrlText}
           browserBarHeightChrome={BROWSER_BAR_HEIGHT_CHROME_PX}
           browserBarHeightSafari={BROWSER_BAR_HEIGHT_SAFARI_PX}
+          onOverlayMouseDown={handleOverlayMouseDown}
+          isDragging={isDragging}
         />
       </main>
       <HiddenMediaForExport />
     </div>
   );
 }
-
     
