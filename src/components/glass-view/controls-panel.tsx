@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Image as ImageIcon, Video, Move, Scale as ScaleIcon, RotateCw, Blend, CornerRightUp } from 'lucide-react';
+import { Download, Image as ImageIcon, Video, Move, Scale as ScaleIcon, RotateCw, Blend, CornerRightUp, Chrome, Compass } from 'lucide-react';
 
 interface ControlsPanelProps {
   onBackgroundChange: (file: File | null) => void;
@@ -24,6 +25,10 @@ interface ControlsPanelProps {
   onPositionYChange: (value: number) => void;
   roundedCorners: boolean;
   onRoundedCornersChange: (value: boolean) => void;
+  browserBar: 'none' | 'chrome' | 'safari';
+  onBrowserBarChange: (value: 'none' | 'chrome' | 'safari') => void;
+  browserUrl: string;
+  onBrowserUrlChange: (value: string) => void;
   onExportImage: () => void;
   onExportVideo: () => void;
   isExporting: boolean;
@@ -44,6 +49,10 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onPositionYChange,
   roundedCorners,
   onRoundedCornersChange,
+  browserBar,
+  onBrowserBarChange,
+  browserUrl,
+  onBrowserUrlChange,
   onExportImage,
   onExportVideo,
   isExporting,
@@ -145,7 +154,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <CornerRightUp className="w-5 h-5 text-primary" /> {/* Replaced Download with a more generic icon */}
+            <CornerRightUp className="w-5 h-5 text-primary" />
             Appearance & Export
           </CardTitle>
         </CardHeader>
@@ -160,6 +169,40 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
               onCheckedChange={onRoundedCornersChange}
             />
           </div>
+          <div>
+            <Label className="text-sm">Browser Bar</Label>
+            <RadioGroup
+              value={browserBar}
+              onValueChange={(value: 'none' | 'chrome' | 'safari') => onBrowserBarChange(value)}
+              className="mt-1 flex space-x-2"
+            >
+              <div className="flex items-center space-x-1">
+                <RadioGroupItem value="none" id="rb-none" />
+                <Label htmlFor="rb-none" className="text-xs font-normal">None</Label>
+              </div>
+              <div className="flex items-center space-x-1">
+                <RadioGroupItem value="chrome" id="rb-chrome" />
+                <Label htmlFor="rb-chrome" className="text-xs font-normal flex items-center"><Chrome className="w-3 h-3 mr-1"/>Chrome</Label>
+              </div>
+              <div className="flex items-center space-x-1">
+                <RadioGroupItem value="safari" id="rb-safari" />
+                <Label htmlFor="rb-safari" className="text-xs font-normal flex items-center"><Compass className="w-3 h-3 mr-1"/>Safari</Label>
+              </div>
+            </RadioGroup>
+          </div>
+           {browserBar !== 'none' && (
+            <div>
+              <Label htmlFor="browser-url" className="text-sm">Browser URL</Label>
+              <Input
+                id="browser-url"
+                type="text"
+                value={browserUrl}
+                onChange={(e) => onBrowserUrlChange(e.target.value)}
+                placeholder="example.com"
+                className="mt-1"
+              />
+            </div>
+          )}
           <Button onClick={onExportImage} className="w-full" disabled={isExporting}>
             {isExporting ? 'Exporting...' : 'Export as Image'}
             <ImageIcon className="ml-2 h-4 w-4" />
@@ -175,3 +218,5 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
 };
 
 export default ControlsPanel;
+
+    
