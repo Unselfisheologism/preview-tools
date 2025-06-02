@@ -16,19 +16,20 @@ interface PreviewAreaProps {
   backgroundEffectContrast: number;
   backgroundEffectSaturation: number;
   backgroundEffectVignette: number;
+  backgroundEffectNoise: number;
   activeVfx: 'none' | 'cornerGlow';
 
   overlayUrl: string | null;
   overlayType: 'image' | 'video' | null;
-  overlayStyle: React.CSSProperties; 
+  overlayStyle: React.CSSProperties;
   roundedCorners: boolean;
   cornerRadiusPreview: string;
   browserBar: 'none' | 'chrome' | 'safari';
   browserUrl: string;
   browserBarHeightChrome: number;
   browserBarHeightSafari: number;
-  onOverlayMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void; 
-  isDragging: boolean; 
+  onOverlayMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
+  isDragging: boolean;
 }
 
 const PreviewArea: React.FC<PreviewAreaProps> = ({
@@ -42,41 +43,42 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   backgroundEffectContrast,
   backgroundEffectSaturation,
   backgroundEffectVignette,
+  backgroundEffectNoise,
   activeVfx,
 
   overlayUrl,
   overlayType,
-  overlayStyle, 
+  overlayStyle,
   roundedCorners,
   cornerRadiusPreview,
   browserBar,
   browserUrl,
   browserBarHeightChrome,
   browserBarHeightSafari,
-  onOverlayMouseDown, 
-  isDragging, 
+  onOverlayMouseDown,
+  isDragging,
 }) => {
   const previewContainerStyle: React.CSSProperties = {
-    borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem', 
-    position: 'relative', // For absolute positioning of effects overlay
-    overflow: 'hidden', // To clip effects and content by rounded corners
+    borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem',
+    position: 'relative',
+    overflow: 'hidden',
   };
 
   const backgroundElementStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
-    objectFit: 'contain', // For images/videos
+    objectFit: 'contain',
     transition: 'opacity 0.3s ease-in-out, filter 0.3s ease-in-out',
     filter: `blur(${backgroundEffectBlur}px) brightness(${backgroundEffectBrightness}) contrast(${backgroundEffectContrast}) saturate(${backgroundEffectSaturation})`,
   };
-  
+
   if (backgroundMode === 'solid') {
     previewContainerStyle.backgroundColor = solidBackgroundColor;
   } else if (backgroundMode === 'transparent') {
     previewContainerStyle.backgroundImage = `
-      linear-gradient(45deg, #e0e0e0 25%, transparent 25%), 
-      linear-gradient(-45deg, #e0e0e0 25%, transparent 25%), 
-      linear-gradient(45deg, transparent 75%, #e0e0e0 75%), 
+      linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
+      linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
       linear-gradient(-45deg, transparent 75%, #e0e0e0 75%)`;
     previewContainerStyle.backgroundSize = '20px 20px';
     previewContainerStyle.backgroundPosition = '0 0, 0 10px, 10px -10px, -10px 0px';
@@ -86,7 +88,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
     position: 'absolute',
     inset: 0,
     pointerEvents: 'none',
-    zIndex: 1, // Above background, below main overlay
+    zIndex: 1, // Above background, below noise and main overlay
   };
 
   if (activeVfx === 'cornerGlow') {
@@ -95,12 +97,18 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   if (backgroundEffectVignette > 0) {
     const existingBackground = effectsOverlayStyle.background ? `${effectsOverlayStyle.background}, ` : '';
     effectsOverlayStyle.background = `${existingBackground}radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0, ${backgroundEffectVignette}) 100%)`;
-     // Alternatively, use box-shadow, but radial gradient is often smoother for vignette
-    // effectsOverlayStyle.boxShadow = `inset 0 0 70px 30px rgba(0,0,0, ${backgroundEffectVignette})`;
   }
 
+  const noiseOverlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+    opacity: backgroundEffectNoise,
+    zIndex: 2, // Above background effects, below main overlay
+  };
 
-  // This style is for the container that clips the browser bar and media content together.
+
   const overlayClipContainerStyle: React.CSSProperties = {
     borderRadius: roundedCorners ? cornerRadiusPreview : '0px',
     overflow: roundedCorners ? 'hidden' : 'visible',
@@ -108,23 +116,24 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    position: 'relative', // Ensure it's a stacking context
-    zIndex: 2, // Above effects overlay
+    position: 'relative',
+    zIndex: 3, // Above effects and noise overlays
   };
 
   const overlayMediaContainerDynamicStyle: React.CSSProperties = {
     flex: 1,
     width: '100%',
-    position: 'relative', 
-    overflow: 'hidden', 
+    position: 'relative',
+    overflow: 'hidden',
   };
 
   if (roundedCorners) {
     if (browserBar === 'none') {
-       // Handled by overlayClipContainerStyle
+       // Handled by overlayClipContainerStyle if no browser bar
     } else {
        overlayMediaContainerDynamicStyle.borderBottomLeftRadius = cornerRadiusPreview;
        overlayMediaContainerDynamicStyle.borderBottomRightRadius = cornerRadiusPreview;
+       // Top corners are flat to meet the browser bar
        overlayMediaContainerDynamicStyle.borderTopLeftRadius = '0px';
        overlayMediaContainerDynamicStyle.borderTopRightRadius = '0px';
     }
@@ -146,8 +155,8 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
           style={backgroundElementStyle}
           className="transition-opacity duration-300 ease-in-out"
           data-ai-hint={backgroundHint || 'abstract background'}
-          priority={backgroundUrl.startsWith('http')} 
-          unoptimized={backgroundUrl.startsWith('blob:')} 
+          priority={backgroundUrl.startsWith('http')}
+          unoptimized={backgroundUrl.startsWith('blob:')}
         />
       )}
       {(backgroundMode === 'default' || backgroundMode === 'custom') && backgroundUrl && backgroundType === 'video' && (
@@ -164,27 +173,27 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
       {(backgroundMode !== 'solid' && backgroundMode !== 'transparent') && !backgroundUrl && (
         <div className="text-muted-foreground z-[1]">Upload or select a default background</div>
       )}
-      
+
       {(activeVfx !== 'none' || backgroundEffectVignette > 0) && (
         <div style={effectsOverlayStyle}></div>
       )}
 
+      {backgroundEffectNoise > 0 && (
+        <div style={noiseOverlayStyle}></div>
+      )}
 
       {overlayUrl && (
-        <div 
-          className={cn(
-            "absolute", 
-            isDragging ? 'cursor-grabbing' : 'cursor-grab'
-          )}
-          style={{...overlayStyle, zIndex: 3}} // Ensure overlayStyle applies transform, opacity, filter
-          onMouseDown={onOverlayMouseDown} 
+        <div
+          className={cn("absolute")} // Cursor is part of overlayStyle now
+          style={{...overlayStyle, opacity: overlayStyle.opacity ?? 1 }} // Ensure opacity is explicitly applied here from overlayStyle
+          onMouseDown={onOverlayMouseDown}
         >
           <div style={overlayClipContainerStyle}>
             {browserBar === 'chrome' && (
               <ChromeBar
                 urlText={browserUrl}
                 height={browserBarHeightChrome}
-                roundedTop={roundedCorners} 
+                roundedTop={roundedCorners}
                 cornerRadius={cornerRadiusPreview}
               />
             )}
@@ -192,7 +201,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
               <SafariBar
                 urlText={browserUrl}
                 height={browserBarHeightSafari}
-                roundedTop={roundedCorners} 
+                roundedTop={roundedCorners}
                 cornerRadius={cornerRadiusPreview}
               />
             )}
@@ -216,7 +225,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
                   loop
                   muted
                   playsInline
-                  className="w-full h-full object-contain" 
+                  className="w-full h-full object-contain"
                   style={{ objectPosition: 'center top' }}
                 />
               )}
@@ -229,4 +238,3 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
 };
 
 export default PreviewArea;
-

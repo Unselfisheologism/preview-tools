@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ImageUp, Wand2, SlidersHorizontal, Palette, CheckSquare } from 'lucide-react'; // Palette for solid, CheckSquare for transparent
+import { ImageUp, Wand2, SlidersHorizontal, Palette, CheckSquare } from 'lucide-react';
 
 interface DefaultBackgroundInfo {
   name: string;
@@ -28,7 +28,7 @@ interface BackgroundExportControlsProps {
   onBackgroundModeChange: (mode: 'default' | 'custom' | 'solid' | 'transparent') => void;
   solidBackgroundColor: string;
   onSolidBackgroundColorChange: (color: string) => void;
-  
+
   backgroundEffectBlur: number;
   onBackgroundEffectBlurChange: (value: number) => void;
   backgroundEffectBrightness: number;
@@ -39,9 +39,36 @@ interface BackgroundExportControlsProps {
   onBackgroundEffectSaturationChange: (value: number) => void;
   backgroundEffectVignette: number;
   onBackgroundEffectVignetteChange: (value: number) => void;
+  backgroundEffectNoise: number;
+  onBackgroundEffectNoiseChange: (value: number) => void;
   activeVfx: 'none' | 'cornerGlow';
   onActiveVfxChange: (vfx: 'none' | 'cornerGlow') => void;
 }
+
+const GrainIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="w-3.5 h-3.5 mr-1.5"
+  >
+    <circle cx="7" cy="7" r="1"></circle>
+    <circle cx="12" cy="9" r="1"></circle>
+    <circle cx="17" cy="7" r="1"></circle>
+    <circle cx="7" cy="17" r="1"></circle>
+    <circle cx="12" cy="15" r="1"></circle>
+    <circle cx="17" cy="17" r="1"></circle>
+    <circle cx="10" cy="12" r="1"></circle>
+    <circle cx="14" cy="12" r="1"></circle>
+  </svg>
+);
+
 
 const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
   onBackgroundChange,
@@ -61,6 +88,8 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
   onBackgroundEffectSaturationChange,
   backgroundEffectVignette,
   onBackgroundEffectVignetteChange,
+  backgroundEffectNoise,
+  onBackgroundEffectNoiseChange,
   activeVfx,
   onActiveVfxChange,
 }) => {
@@ -81,7 +110,7 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <RadioGroup value={backgroundMode} onValueChange={onBackgroundModeChange} className="space-y-2">
+              <RadioGroup value={backgroundMode} onValueChange={(value) => onBackgroundModeChange(value as 'default' | 'custom' | 'solid' | 'transparent')} className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="default" id="bg-default" />
                   <Label htmlFor="bg-default" className="font-normal">Default Images</Label>
@@ -126,7 +155,7 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
                       type="color"
                       value={solidBackgroundColor}
                       onChange={(e) => onSolidBackgroundColorChange(e.target.value)}
-                      className="h-10 w-full p-1" // Adjusted for color type
+                      className="h-10 w-full p-1"
                     />
                   </div>
                 )}
@@ -185,8 +214,15 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
                 <Slider id="bg-saturation-slider" min={0} max={2} step={0.1} value={[backgroundEffectSaturation]} onValueChange={(v) => onBackgroundEffectSaturationChange(v[0])} className="mt-1" />
               </div>
               <div>
-                <Label htmlFor="bg-vignette-slider" className="text-sm">Vignette Intensity: {Math.round(backgroundEffectVignette * 100)}%</Label>
+                <Label htmlFor="bg-vignette-slider" className="text-sm">Vignette: {Math.round(backgroundEffectVignette * 100)}%</Label>
                 <Slider id="bg-vignette-slider" min={0} max={1} step={0.05} value={[backgroundEffectVignette]} onValueChange={(v) => onBackgroundEffectVignetteChange(v[0])} className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="bg-noise-slider" className="text-sm flex items-center">
+                  <GrainIcon />
+                  Noise: {Math.round(backgroundEffectNoise * 100)}%
+                </Label>
+                <Slider id="bg-noise-slider" min={0} max={1} step={0.05} value={[backgroundEffectNoise]} onValueChange={(v) => onBackgroundEffectNoiseChange(v[0])} className="mt-1" />
               </div>
             </CardContent>
           </Card>
@@ -197,4 +233,3 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
 };
 
 export default BackgroundExportControls;
-
