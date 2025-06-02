@@ -7,6 +7,9 @@ import ControlsPanel from '@/components/glass-view/controls-panel';
 import PreviewArea from '@/components/glass-view/preview-area';
 import { useToast } from "@/hooks/use-toast";
 
+const EXPORT_CORNER_RADIUS = 30; // For canvas export
+const PREVIEW_CORNER_RADIUS_CSS = '20px'; // For CSS preview
+
 export default function GlassViewPage() {
   const { toast } = useToast();
 
@@ -23,12 +26,13 @@ export default function GlassViewPage() {
   const [rotation, setRotation] = useState(0);
   const [positionX, setPositionX] = useState(0);
   const [positionY, setPositionY] = useState(0);
+  const [roundedCorners, setRoundedCorners] = useState(false);
 
   const [isExporting, setIsExporting] = useState(false);
 
   const backgroundMediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
   const overlayMediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // const canvasRef = useRef<HTMLCanvasElement | null>(null); // Not directly used for drawing, local canvas created
 
 
   const handleFileChange = (
@@ -51,52 +55,40 @@ export default function GlassViewPage() {
     return () => {
       if (backgroundUrl) URL.revokeObjectURL(backgroundUrl);
     };
-  }, [backgroundFile]);
+  }, [backgroundFile, backgroundUrl]); // Added backgroundUrl to dependencies
 
   useEffect(() => {
     handleFileChange(overlayFile, setOverlayUrl, setOverlayType);
     return () => {
       if (overlayUrl) URL.revokeObjectURL(overlayUrl);
     };
-  }, [overlayFile]);
+  }, [overlayFile, overlayUrl]); // Added overlayUrl to dependencies
 
   const overlayStyle: React.CSSProperties = {
     opacity,
     transform: `translate(${positionX}px, ${positionY}px) scale(${scale}) rotate(${rotation}deg)`,
-    width: overlayType === 'image' ? 'auto' : '100%', // Adjust as needed
+    width: overlayType === 'image' ? 'auto' : '100%',
     height: overlayType === 'image' ? 'auto' : '100%',
-  };
-
-  const edgeSize = 40; // Example size for curved edges
-
-  const drawCurvedEdge = (ctx: CanvasRenderingContext2D, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right', size: number, canvasWidth: number, canvasHeight: number) => {
-    ctx.save();
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    const s = size;
-    
-    // Paths are relative to canvas origin.
-    if (corner === 'top-left') {
-      ctx.moveTo(0, s); 
-      ctx.quadraticCurveTo(0, 0, s, 0);
-    } else if (corner === 'top-right') {
-      ctx.moveTo(canvasWidth - s, 0); 
-      ctx.quadraticCurveTo(canvasWidth, 0, canvasWidth, s);
-    } else if (corner === 'bottom-left') {
-      ctx.moveTo(s, canvasHeight); 
-      ctx.quadraticCurveTo(0, canvasHeight, 0, canvasHeight - s);
-    } else if (corner === 'bottom-right') {
-      ctx.moveTo(canvasWidth, canvasHeight - s); 
-      ctx.quadraticCurveTo(canvasWidth, canvasHeight, canvasWidth - s, canvasHeight);
-    }
-    
-    ctx.stroke();
-    ctx.restore();
   };
   
   const drawFrameOnCanvas = useCallback(async (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (roundedCorners) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(EXPORT_CORNER_RADIUS, 0);
+      ctx.lineTo(canvas.width - EXPORT_CORNER_RADIUS, 0);
+      ctx.quadraticCurveTo(canvas.width, 0, canvas.width, EXPORT_CORNER_RADIUS);
+      ctx.lineTo(canvas.width, canvas.height - EXPORT_CORNER_RADIUS);
+      ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - EXPORT_CORNER_RADIUS, canvas.height);
+      ctx.lineTo(EXPORT_CORNER_RADIUS, canvas.height);
+      ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - EXPORT_CORNER_RADIUS);
+      ctx.lineTo(0, EXPORT_CORNER_RADIUS);
+      ctx.quadraticCurveTo(0, 0, EXPORT_CORNER_RADIUS, 0);
+      ctx.closePath();
+      ctx.clip();
+    }
 
     // Draw background
     const bgMedia = document.getElementById('background-media-export') as HTMLImageElement | HTMLVideoElement;
@@ -104,22 +96,16 @@ export default function GlassViewPage() {
         if (backgroundType === 'image' && bgMedia instanceof HTMLImageElement && bgMedia.complete) {
              const { drawWidth, drawHeight, offsetX, offsetY } = getContainSize(canvas.width, canvas.height, bgMedia.naturalWidth, bgMedia.naturalHeight);
              ctx.drawImage(bgMedia, offsetX, offsetY, drawWidth, drawHeight);
-        } else if (backgroundType === 'video' && bgMedia instanceof HTMLVideoElement) {
+        } else if (backgroundType === 'video' && bgMedia instanceof HTMLVideoElement && bgMedia.videoWidth > 0) { // Check videoWidth > 0
             const { drawWidth, drawHeight, offsetX, offsetY } = getContainSize(canvas.width, canvas.height, bgMedia.videoWidth, bgMedia.videoHeight);
             ctx.drawImage(bgMedia, offsetX, offsetY, drawWidth, drawHeight);
         }
     }
     
-    // Draw curved edges
-    drawCurvedEdge(ctx, 'top-left', edgeSize, canvas.width, canvas.height);
-    drawCurvedEdge(ctx, 'top-right', edgeSize, canvas.width, canvas.height);
-    drawCurvedEdge(ctx, 'bottom-left', edgeSize, canvas.width, canvas.height);
-    drawCurvedEdge(ctx, 'bottom-right', edgeSize, canvas.width, canvas.height);
-
     // Draw overlay
     const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement | HTMLVideoElement;
     if (ovMedia) {
-        ctx.save();
+        ctx.save(); // Save context state before overlay transformations
         ctx.globalAlpha = opacity;
         
         const ovCenterX = canvas.width / 2 + positionX;
@@ -134,34 +120,37 @@ export default function GlassViewPage() {
         if (overlayType === 'image' && ovMedia instanceof HTMLImageElement && ovMedia.complete) {
             naturalWidth = ovMedia.naturalWidth;
             naturalHeight = ovMedia.naturalHeight;
-        } else if (overlayType === 'video' && ovMedia instanceof HTMLVideoElement) {
+        } else if (overlayType === 'video' && ovMedia instanceof HTMLVideoElement && ovMedia.videoWidth > 0) { // Check videoWidth > 0
             naturalWidth = ovMedia.videoWidth;
             naturalHeight = ovMedia.videoHeight;
         }
 
         if (naturalWidth > 0 && naturalHeight > 0) {
-            // Calculate dimensions to contain overlay within canvas, respecting its aspect ratio
-            // This part is tricky with transforms. For simplicity, let's assume overlay is drawn at its natural size scaled
-            // and the user positions it. Or, we can pre-scale it to fit within some bounds.
-            // Max overlay dimensions can be set e.g. to canvas dimensions.
             const { drawWidth, drawHeight } = getContainSize(canvas.width, canvas.height, naturalWidth, naturalHeight);
-            
             ctx.drawImage(ovMedia, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
         }
-        ctx.restore();
+        ctx.restore(); // Restore context state after overlay transformations
     }
-  }, [backgroundType, overlayType, opacity, scale, rotation, positionX, positionY, edgeSize]);
+
+    if (roundedCorners) {
+      ctx.restore(); // Restore context if it was clipped
+    }
+  }, [backgroundType, overlayType, opacity, scale, rotation, positionX, positionY, roundedCorners]);
 
   const getContainSize = (containerWidth: number, containerHeight: number, naturalWidth: number, naturalHeight: number) => {
     const containerRatio = containerWidth / containerHeight;
     const naturalRatio = naturalWidth / naturalHeight;
     let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
 
-    if (naturalRatio > containerRatio) { // Wider than container
+    if (naturalWidth <= 0 || naturalHeight <= 0) { // Prevent division by zero or invalid aspect ratio
+        return { drawWidth: 0, drawHeight: 0, offsetX: containerWidth / 2, offsetY: containerHeight / 2 };
+    }
+    
+    if (naturalRatio > containerRatio) { 
         drawWidth = containerWidth;
         drawHeight = containerWidth / naturalRatio;
         offsetY = (containerHeight - drawHeight) / 2;
-    } else { // Taller than or same ratio as container
+    } else { 
         drawHeight = containerHeight;
         drawWidth = containerHeight * naturalRatio;
         offsetX = (containerWidth - drawWidth) / 2;
@@ -185,19 +174,18 @@ export default function GlassViewPage() {
         return;
     }
     
-    // Wait for media to load dimensions
     await new Promise<void>(resolve => {
       if (backgroundType === 'image' && bgMedia instanceof HTMLImageElement) {
-        if (bgMedia.complete) resolve(); else bgMedia.onload = () => resolve();
+        if (bgMedia.complete && bgMedia.naturalWidth > 0) resolve(); else bgMedia.onload = () => { if (bgMedia.naturalWidth > 0) resolve(); };
       } else if (backgroundType === 'video' && bgMedia instanceof HTMLVideoElement) {
-        if (bgMedia.readyState >= 2) resolve(); else bgMedia.onloadeddata = () => resolve();
+        if (bgMedia.readyState >= 2 && bgMedia.videoWidth > 0) resolve(); else bgMedia.onloadeddata = () => { if (bgMedia.videoWidth > 0) resolve(); };
       } else {
-        resolve(); // No background, or unknown type
+        resolve(); 
       }
     });
 
-    canvas.width = bgMedia instanceof HTMLVideoElement ? bgMedia.videoWidth : (bgMedia as HTMLImageElement).naturalWidth || 1280;
-    canvas.height = bgMedia instanceof HTMLVideoElement ? bgMedia.videoHeight : (bgMedia as HTMLImageElement).naturalHeight || 720;
+    canvas.width = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoWidth || 1280) : ((bgMedia as HTMLImageElement).naturalWidth || 1280);
+    canvas.height = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoHeight || 720) : ((bgMedia as HTMLImageElement).naturalHeight || 720);
     
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -242,12 +230,12 @@ export default function GlassViewPage() {
     }
     
     await new Promise<void>(resolve => {
-        if (bgVideo.readyState >= 2) resolve(); else bgVideo.onloadeddata = () => resolve();
+        if (bgVideo.readyState >= 2 && bgVideo.videoWidth > 0) resolve(); else bgVideo.onloadeddata = () => { if(bgVideo.videoWidth > 0) resolve(); };
     });
 
     const canvas = document.createElement('canvas');
-    canvas.width = bgVideo.videoWidth;
-    canvas.height = bgVideo.videoHeight;
+    canvas.width = bgVideo.videoWidth || 1280;
+    canvas.height = bgVideo.videoHeight || 720;
     const ctx = canvas.getContext('2d');
 
     if (!ctx) {
@@ -256,7 +244,7 @@ export default function GlassViewPage() {
       return;
     }
 
-    const stream = canvas.captureStream(30); // 30 FPS
+    const stream = canvas.captureStream(30); 
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
     const chunks: Blob[] = [];
 
@@ -278,23 +266,25 @@ export default function GlassViewPage() {
     recorder.start();
 
     bgVideo.currentTime = 0;
-    await bgVideo.play();
+    await bgVideo.play().catch(e => { console.error("Error playing background video:", e); setIsExporting(false); recorder.stop(); });
+
 
     const ovVideo = document.getElementById('overlay-media-export') as HTMLVideoElement;
     if (overlayType === 'video' && ovVideo) {
         ovVideo.currentTime = 0;
-        await ovVideo.play();
+        await ovVideo.play().catch(e => console.error("Error playing overlay video:", e));
     }
     
     let animationFrameId: number;
     const duration = bgVideo.duration;
 
     function recordFrame() {
-      if (bgVideo.currentTime >= duration || bgVideo.paused) {
-        recorder.stop();
+      if (!isExporting || bgVideo.currentTime >= duration || bgVideo.paused) {
+        if(recorder.state === "recording") recorder.stop();
         bgVideo.pause();
         if (ovVideo) ovVideo.pause();
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        // setIsExporting(false); // Moved to onstop or error handling
         return;
       }
       drawFrameOnCanvas(ctx, canvas);
@@ -302,16 +292,15 @@ export default function GlassViewPage() {
     }
     animationFrameId = requestAnimationFrame(recordFrame);
 
-  }, [backgroundUrl, backgroundType, overlayType, drawFrameOnCanvas, toast]);
+  }, [backgroundUrl, backgroundType, overlayType, drawFrameOnCanvas, toast, isExporting]);
 
 
-  // Hidden media elements for export rendering
   const HiddenMediaForExport = () => (
     <div style={{ display: 'none' }}>
-      {backgroundUrl && backgroundType === 'image' && <img id="background-media-export" src={backgroundUrl} alt="" />}
-      {backgroundUrl && backgroundType === 'video' && <video id="background-media-export" src={backgroundUrl} muted playsInline />}
-      {overlayUrl && overlayType === 'image' && <img id="overlay-media-export" src={overlayUrl} alt="" />}
-      {overlayUrl && overlayType === 'video' && <video id="overlay-media-export" src={overlayUrl} muted playsInline />}
+      {backgroundUrl && backgroundType === 'image' && <img id="background-media-export" src={backgroundUrl} alt="" crossOrigin="anonymous" />}
+      {backgroundUrl && backgroundType === 'video' && <video id="background-media-export" src={backgroundUrl} muted playsInline crossOrigin="anonymous"/>}
+      {overlayUrl && overlayType === 'image' && <img id="overlay-media-export" src={overlayUrl} alt="" crossOrigin="anonymous" />}
+      {overlayUrl && overlayType === 'video' && <video id="overlay-media-export" src={overlayUrl} muted playsInline crossOrigin="anonymous"/>}
     </div>
   );
 
@@ -331,6 +320,8 @@ export default function GlassViewPage() {
           onPositionXChange={setPositionX}
           positionY={positionY}
           onPositionYChange={setPositionY}
+          roundedCorners={roundedCorners}
+          onRoundedCornersChange={setRoundedCorners}
           onExportImage={handleExportImage}
           onExportVideo={handleExportVideo}
           isExporting={isExporting}
@@ -344,7 +335,8 @@ export default function GlassViewPage() {
           overlayUrl={overlayUrl}
           overlayType={overlayType}
           overlayStyle={overlayStyle}
-          edgeSize={edgeSize}
+          roundedCorners={roundedCorners}
+          cornerRadiusPreview={PREVIEW_CORNER_RADIUS_CSS}
         />
       </main>
       <HiddenMediaForExport />

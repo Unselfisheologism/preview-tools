@@ -1,6 +1,6 @@
+
 import type React from 'react';
 import Image from 'next/image';
-import CurvedEdge from './curved-edge';
 
 interface PreviewAreaProps {
   backgroundUrl: string | null;
@@ -8,7 +8,8 @@ interface PreviewAreaProps {
   overlayUrl: string | null;
   overlayType: 'image' | 'video' | null;
   overlayStyle: React.CSSProperties;
-  edgeSize?: number;
+  roundedCorners: boolean;
+  cornerRadiusPreview: string;
 }
 
 const PreviewArea: React.FC<PreviewAreaProps> = ({
@@ -17,10 +18,19 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   overlayUrl,
   overlayType,
   overlayStyle,
-  edgeSize = 40,
+  roundedCorners,
+  cornerRadiusPreview,
 }) => {
+  const previewContainerStyle: React.CSSProperties = {
+    borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem', // 0.5rem is default rounded-lg
+    transition: 'border-radius 0.3s ease-in-out', // Smooth transition for radius change
+  };
+
   return (
-    <div className="w-full h-full max-w-[1280px] aspect-video bg-muted/50 rounded-lg shadow-inner overflow-hidden relative flex items-center justify-center">
+    <div 
+      className="w-full h-full max-w-[1280px] aspect-video bg-muted/50 shadow-inner overflow-hidden relative flex items-center justify-center"
+      style={previewContainerStyle}
+    >
       {/* Background */}
       {backgroundUrl && backgroundType === 'image' && (
         <Image
@@ -46,25 +56,14 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
         <div className="text-muted-foreground">Upload a background image or video</div>
       )}
 
-      {/* Curved Edges (only if background is present) */}
-      {backgroundUrl && (
-        <>
-          <CurvedEdge corner="top-left" size={edgeSize} stroke="black" strokeWidth={3} />
-          <CurvedEdge corner="top-right" size={edgeSize} stroke="black" strokeWidth={3} />
-          <CurvedEdge corner="bottom-left" size={edgeSize} stroke="black" strokeWidth={3} />
-          <CurvedEdge corner="bottom-right" size={edgeSize} stroke="black" strokeWidth={3} />
-        </>
-      )}
-
       {/* Overlay */}
       {overlayUrl && (
         <div
-          className="absolute transition-transform duration-100 ease-linear" // For smooth transform adjustments
+          className="absolute transition-transform duration-100 ease-linear" 
           style={{
             ...overlayStyle,
             maxWidth: '100%',
             maxHeight: '100%',
-            // Ensure overlay is centered if its dimensions are smaller than parent after transform
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -74,8 +73,8 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
             <Image
               src={overlayUrl}
               alt="Overlay"
-              width={1920} // Max typical screen width, will be scaled by objectFit and transform
-              height={1080} // Max typical screen height
+              width={1920} 
+              height={1080} 
               objectFit="contain"
               className="max-w-full max-h-full"
               data-ai-hint="user interface"

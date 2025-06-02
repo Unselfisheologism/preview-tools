@@ -1,11 +1,13 @@
+
 import type React from 'react';
 import FileUpload from './file-upload';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Image as ImageIcon, Video, Move, Scale, RotateCw, Blend } from 'lucide-react';
+import { Download, Image as ImageIcon, Video, Move, Scale as ScaleIcon, RotateCw, Blend, CornerRightUp } from 'lucide-react';
 
 interface ControlsPanelProps {
   onBackgroundChange: (file: File | null) => void;
@@ -20,6 +22,8 @@ interface ControlsPanelProps {
   onPositionXChange: (value: number) => void;
   positionY: number;
   onPositionYChange: (value: number) => void;
+  roundedCorners: boolean;
+  onRoundedCornersChange: (value: boolean) => void;
   onExportImage: () => void;
   onExportVideo: () => void;
   isExporting: boolean;
@@ -38,6 +42,8 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onPositionXChange,
   positionY,
   onPositionYChange,
+  roundedCorners,
+  onRoundedCornersChange,
   onExportImage,
   onExportVideo,
   isExporting,
@@ -136,14 +142,24 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
         </CardContent>
       </Card>
       
-      <Card className="mt-auto">
+      <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Download className="w-5 h-5 text-primary" />
-            Export
+            <CornerRightUp className="w-5 h-5 text-primary" /> {/* Replaced Download with a more generic icon */}
+            Appearance & Export
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="rounded-corners-switch" className="text-sm">
+              Rounded Corners
+            </Label>
+            <Switch
+              id="rounded-corners-switch"
+              checked={roundedCorners}
+              onCheckedChange={onRoundedCornersChange}
+            />
+          </div>
           <Button onClick={onExportImage} className="w-full" disabled={isExporting}>
             {isExporting ? 'Exporting...' : 'Export as Image'}
             <ImageIcon className="ml-2 h-4 w-4" />
@@ -159,4 +175,3 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
 };
 
 export default ControlsPanel;
-
