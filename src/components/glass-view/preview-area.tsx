@@ -37,6 +37,25 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
     borderRadius: roundedCorners ? cornerRadiusPreview : '0.5rem', // Main viewport rounding
   };
 
+  const overlayMediaContainerDynamicStyle: React.CSSProperties = {
+    overflow: 'hidden', // Always clip the media itself
+  };
+
+  if (roundedCorners) {
+    if (browserBar === 'none') {
+      // If no browser bar, this media container defines the whole overlay shape
+      overlayMediaContainerDynamicStyle.borderRadius = cornerRadiusPreview;
+    } else {
+      // If there IS a browser bar, this container only needs bottom rounding
+      overlayMediaContainerDynamicStyle.borderBottomLeftRadius = cornerRadiusPreview;
+      overlayMediaContainerDynamicStyle.borderBottomRightRadius = cornerRadiusPreview;
+      overlayMediaContainerDynamicStyle.borderTopLeftRadius = '0px'; // Flat top to meet bar
+      overlayMediaContainerDynamicStyle.borderTopRightRadius = '0px'; // Flat top to meet bar
+    }
+  } else {
+    overlayMediaContainerDynamicStyle.borderRadius = '0px'; // No rounding
+  }
+
   return (
     <div
       className="w-full h-full max-w-[1280px] aspect-video bg-muted/50 shadow-inner overflow-hidden relative flex items-center justify-center"
@@ -69,21 +88,21 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
 
       {overlayUrl && (
         <div // Transform & Opacity container for the overlay group
-          className="absolute transition-transform duration-100 ease-linear w-full h-full" // Ensure w-full h-full
+          className="absolute transition-transform duration-100 ease-linear w-full h-full" 
           style={overlayStyle}
         >
-          <div // Groups Browser Bar + Content. This div will be rounded and clip its children.
+          <div // This div groups Browser Bar + Content. It needs to clip if rounded.
             className="w-full h-full flex flex-col"
             style={{
-              borderRadius: roundedCorners ? cornerRadiusPreview : '0px',
-              overflow: roundedCorners ? 'hidden' : 'visible', // This clips children
+              borderRadius: roundedCorners ? cornerRadiusPreview : '0px', // Overall rounding for the group
+              overflow: roundedCorners ? 'hidden' : 'visible', // This clips children to the borderRadius
             }}
           >
             {browserBar === 'chrome' && (
               <ChromeBar
                 urlText={browserUrl}
                 height={browserBarHeightChrome}
-                roundedTop={roundedCorners} // Bar itself rounds its top background
+                roundedTop={roundedCorners} 
                 cornerRadius={cornerRadiusPreview}
               />
             )}
@@ -91,17 +110,15 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
               <SafariBar
                 urlText={browserUrl}
                 height={browserBarHeightSafari}
-                roundedTop={roundedCorners} // Bar itself rounds its top background
+                roundedTop={roundedCorners} 
                 cornerRadius={cornerRadiusPreview}
               />
             )}
 
-            {/* Overlay Content Area. Relies on parent for rounded clipping. */}
+            {/* Overlay Content Area. */}
             <div
-              className="flex-1 w-full relative" // Still needs to be relative for next/image layout="fill"
-              style={{
-                overflow: 'hidden', // Clips the actual Image/Video within this flex item
-              }}
+              className="flex-1 w-full relative" 
+              style={overlayMediaContainerDynamicStyle}
             >
               {overlayType === 'image' && (
                 <Image
@@ -120,7 +137,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
                   loop
                   muted
                   playsInline
-                  className="w-full h-full object-contain" // Video takes full space of this div
+                  className="w-full h-full object-contain" 
                   style={{ objectPosition: 'center top' }}
                 />
               )}
