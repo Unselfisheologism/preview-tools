@@ -153,7 +153,8 @@ export default function GlassViewPage() {
         handleSetDefaultBackground(defaultBackgrounds[0]);
       }
     }
-  }, [backgroundMode, backgroundUrl, defaultBackgrounds, handleSetDefaultBackground]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backgroundMode, handleSetDefaultBackground]);
 
 
   const handleOverlayFileChange = (file: File | null) => {
@@ -578,14 +579,18 @@ export default function GlassViewPage() {
 
     const bgVideo = document.getElementById('background-media-export') as HTMLVideoElement;
     const ovVideo = document.getElementById('overlay-media-export') as HTMLVideoElement | null;
+    let animationFrameId: number | undefined;
+    let recorder: MediaRecorder | null = null;
 
-    if (!bgVideo) {
-        setIsExporting(false);
-        toast({ title: "Export Error", description: "Background video element not found.", variant: "destructive" });
-        return;
-    }
+    const cleanupVideoListeners = () => {
+      if (bgVideo) bgVideo.onended = null;
+    };
 
     try {
+        if (!bgVideo) {
+            throw new Error("Background video element not found.");
+        }
+
         await new Promise<void>((resolve, reject) => {
             if (bgVideo.readyState >= 2 && bgVideo.videoWidth > 0) resolve();
             else {
@@ -593,146 +598,139 @@ export default function GlassViewPage() {
                 bgVideo.onerror = () => reject(new Error("Error loading background video metadata."));
             }
         });
-    } catch (err: any) {
-        setIsExporting(false);
-        toast({ title: "Background Video Load Error", description: err.message, variant: "destructive" });
-        return;
-    }
+    
+        const exportWidth = bgVideo.videoWidth || 1280;
+        const exportHeight = bgVideo.videoHeight || 720;
 
-    const exportWidth = bgVideo.videoWidth || 1280;
-    const exportHeight = bgVideo.videoHeight || 720;
+        const canvas = document.createElement('canvas');
+        canvas.width = exportWidth;
+        canvas.height = exportHeight;
+        const ctx = canvas.getContext('2d');
 
-    const canvas = document.createElement('canvas');
-    canvas.width = exportWidth;
-    canvas.height = exportHeight;
-    const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error("Could not get canvas context.");
+        }
 
-    if (!ctx) {
-      setIsExporting(false);
-      toast({ title: "Export Error", description: "Could not get canvas context.", variant: "destructive" });
-      return;
-    }
+        const stream = canvas.captureStream(30); 
+        recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        const chunks: Blob[] = [];
 
-    const stream = canvas.captureStream(30); 
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-    const chunks: Blob[] = [];
-    let animationFrameId: number | undefined;
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data);
+        };
 
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
+        recorder.onstop = () => {
+          cleanupVideoListeners();
+          if (animationFrameId) cancelAnimationFrame(animationFrameId);
+          animationFrameId = undefined; 
 
-    recorder.onstop = () => {
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      animationFrameId = undefined; 
+          if (bgVideo) bgVideo.pause();
+          if (ovVideo) ovVideo.pause();
+          
+          setIsExporting(false); 
 
-      bgVideo.pause();
-      if (ovVideo) ovVideo.pause();
-      
-      setIsExporting(false); 
+          if (chunks.length === 0) {
+            toast({ title: "Export Error", description: "No video data was recorded. The file might be empty.", variant: "destructive" });
+            return;
+          }
+          const blob = new Blob(chunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'glass-view_export.webm';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          toast({ title: "Export Successful", description: "Video downloaded." });
+        };
 
-      if (chunks.length === 0) {
-        toast({ title: "Export Error", description: "No video data was recorded. The file might be empty.", variant: "destructive" });
-        return;
-      }
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'glass-view_export.webm';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({ title: "Export Successful", description: "Video downloaded." });
-    };
-
-    recorder.onerror = (event) => {
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      animationFrameId = undefined;
-      console.error("MediaRecorder error:", event);
-      let errorMessage = "Video recording failed.";
-      if (event instanceof Event && (event as any).error) {
-          errorMessage += ` ${(event as any).error.name || 'Unknown error'}: ${(event as any).error.message || ''}`;
-      }
-      toast({ title: "Export Error", description: errorMessage, variant: "destructive" });
-      setIsExporting(false);
-      bgVideo.pause();
-      if (ovVideo) ovVideo.pause();
-    };
-
-    bgVideo.currentTime = 0;
-    if (overlayType === 'video' && ovVideo && ovVideo.src) {
-      ovVideo.currentTime = 0;
-      try {
-        await new Promise<void>((resolve, reject) => {
-            if (ovVideo.readyState >= 2 && ovVideo.videoWidth > 0) resolve();
-            else {
-                ovVideo.onloadeddata = () => { if (ovVideo.videoWidth > 0) resolve(); else reject(new Error("Overlay video metadata could not be loaded (no dimensions).")); };
-                ovVideo.onerror = () => reject(new Error("Error loading overlay video metadata."));
-            }
-        });
-      } catch (err: any) {
+        recorder.onerror = (event) => {
+          cleanupVideoListeners();
+          if (animationFrameId) cancelAnimationFrame(animationFrameId);
+          animationFrameId = undefined;
+          console.error("MediaRecorder error:", event);
+          let errorMessage = "Video recording failed.";
+          if (event instanceof Event && (event as any).error) {
+              errorMessage += ` ${(event as any).error.name || 'Unknown error'}: ${(event as any).error.message || ''}`;
+          }
+          toast({ title: "Export Error", description: errorMessage, variant: "destructive" });
           setIsExporting(false);
-          toast({ title: "Overlay Video Load Error", description: err.message, variant: "destructive" });
-          return;
-      }
-    }
+          if (bgVideo) bgVideo.pause();
+          if (ovVideo) ovVideo.pause();
+        };
 
-    try {
-      const bgPlayPromise = bgVideo.play();
-      const ovPlayPromise = (overlayType === 'video' && ovVideo && ovVideo.src) ? ovVideo.play() : Promise.resolve();
+        bgVideo.onended = () => {
+            if (recorder && recorder.state === "recording") {
+                recorder.stop();
+            }
+            cleanupVideoListeners();
+        };
 
-      if (bgPlayPromise) await bgPlayPromise;
-      await waitForVideoEvent(bgVideo, 'playing');
-      
-      if (overlayType === 'video' && ovVideo && ovVideo.src && ovPlayPromise) {
-        await ovPlayPromise;
-        await waitForVideoEvent(ovVideo, 'playing');
-      }
+        bgVideo.currentTime = 0;
+        if (overlayType === 'video' && ovVideo && ovVideo.src) {
+          ovVideo.currentTime = 0;
+          await new Promise<void>((resolve, reject) => {
+              if (ovVideo.readyState >= 2 && ovVideo.videoWidth > 0) resolve();
+              else {
+                  ovVideo.onloadeddata = () => { if (ovVideo.videoWidth > 0) resolve(); else reject(new Error("Overlay video metadata could not be loaded (no dimensions).")); };
+                  ovVideo.onerror = () => reject(new Error("Error loading overlay video metadata."));
+              }
+          });
+        }
 
-    } catch (e: any) {
-      setIsExporting(false);
-      toast({ title: "Playback Error", description: `Could not play videos for export: ${e.message || 'Unknown playback error.'}`, variant: "destructive" });
-      bgVideo.pause();
-      if (ovVideo) ovVideo.pause();
-      return;
-    }
-    
-    if (bgVideo.paused && !bgVideo.ended) { 
-        setIsExporting(false);
-        toast({ title: "Export Error", description: "Video playback did not start or paused unexpectedly before recording could begin.", variant: "destructive" });
-        if (bgVideo.error) console.error("Background video error state:", bgVideo.error);
-        if (ovVideo && ovVideo.error) console.error("Overlay video error state:", ovVideo.error);
-        bgVideo.pause();
-        if (ovVideo) ovVideo.pause();
-        return;
-    }
-    
-    recorder.start();
-    const duration = bgVideo.duration;
+        const bgPlayPromise = bgVideo.play();
+        const ovPlayPromise = (overlayType === 'video' && ovVideo && ovVideo.src) ? ovVideo.play() : Promise.resolve();
 
-    function recordFrame() {
-      if (!isExporting || bgVideo.currentTime >= duration || bgVideo.ended) {
-        if (recorder.state === "recording") recorder.stop();
+        if (bgPlayPromise) {
+            await bgPlayPromise;
+            await waitForVideoEvent(bgVideo, 'playing');
+        }
+        
+        if (overlayType === 'video' && ovVideo && ovVideo.src && ovPlayPromise) {
+            await ovPlayPromise;
+            await waitForVideoEvent(ovVideo, 'playing');
+        }
+        
+        if (bgVideo.paused && !bgVideo.ended) { 
+            throw new Error("Video playback did not start or paused unexpectedly before recording could begin.");
+        }
+        
+        recorder.start();
+        const duration = bgVideo.duration;
+
+        function recordFrame() {
+          if (!isExporting || bgVideo.currentTime >= duration || bgVideo.ended) {
+            if (recorder && recorder.state === "recording") recorder.stop();
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = undefined;
+            return;
+          }
+          
+          if (bgVideo.paused && bgVideo.currentTime < duration && !bgVideo.ended) {
+             console.warn("Video paused unexpectedly during export. Stopping recording.");
+             if (recorder && recorder.state === "recording") recorder.stop();
+             if (animationFrameId) cancelAnimationFrame(animationFrameId);
+             animationFrameId = undefined;
+             toast({ title: "Export Warning", description: "Video playback paused unexpectedly. Export may be incomplete.", variant: "destructive" });
+             return;
+          }
+
+          if (ctx) drawFrameOnCanvas(ctx, canvas);
+          animationFrameId = requestAnimationFrame(recordFrame);
+        }
+        animationFrameId = requestAnimationFrame(recordFrame);
+
+    } catch (err: any) {
+        cleanupVideoListeners();
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         animationFrameId = undefined;
-        return;
-      }
-      
-      if (bgVideo.paused && bgVideo.currentTime < duration && !bgVideo.ended) {
-         console.warn("Video paused unexpectedly during export. Stopping recording.");
-         if (recorder.state === "recording") recorder.stop();
-         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-         animationFrameId = undefined;
-         toast({ title: "Export Warning", description: "Video playback paused unexpectedly. Export may be incomplete.", variant: "destructive" });
-         return;
-      }
-
-      drawFrameOnCanvas(ctx, canvas);
-      animationFrameId = requestAnimationFrame(recordFrame);
+        if (recorder && recorder.state === "recording") recorder.stop();
+        setIsExporting(false);
+        toast({ title: "Export Error", description: err.message || "An unknown error occurred during video export setup.", variant: "destructive" });
+        if (bgVideo) bgVideo.pause();
+        if (ovVideo) ovVideo.pause();
     }
-    animationFrameId = requestAnimationFrame(recordFrame);
 
   }, [
     backgroundMode, backgroundUrl, backgroundType, overlayType, overlayUrl,
@@ -870,3 +868,4 @@ export default function GlassViewPage() {
 }
 
     
+
