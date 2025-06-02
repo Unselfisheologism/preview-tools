@@ -7,6 +7,9 @@ import OverlayControls from '@/components/glass-view/overlay-controls';
 import BackgroundExportControls from '@/components/glass-view/background-export-controls';
 import PreviewArea from '@/components/glass-view/preview-area';
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Download, Image as ImageIconLucide, Video } from 'lucide-react';
 
 const EXPORT_CORNER_RADIUS = 30; // For canvas export
 const PREVIEW_CORNER_RADIUS_CSS = '20px'; // For CSS preview
@@ -445,55 +448,75 @@ export default function GlassViewPage() {
   );
 
   return (
-    <div className="flex flex-row h-screen bg-background text-foreground overflow-hidden">
-      <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
-        <OverlayControls
-          onOverlayChange={handleOverlayFileChange}
-          opacity={opacity}
-          onOpacityChange={setOpacity}
-          scale={scale}
-          onScaleChange={setScale}
-          rotation={rotation}
-          onRotationChange={setRotation}
-          roundedCorners={roundedCorners}
-          onRoundedCornersChange={setRoundedCorners}
-          browserBar={browserBar}
-          onBrowserBarChange={setBrowserBar}
-          browserUrl={browserUrlText}
-          onBrowserUrlChange={setBrowserUrlText}
-        />
-      </aside>
+    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
+      <div className="flex flex-row flex-1 overflow-hidden">
+        <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
+          <OverlayControls
+            onOverlayChange={handleOverlayFileChange}
+            opacity={opacity}
+            onOpacityChange={setOpacity}
+            scale={scale}
+            onScaleChange={setScale}
+            rotation={rotation}
+            onRotationChange={setRotation}
+            roundedCorners={roundedCorners}
+            onRoundedCornersChange={setRoundedCorners}
+            browserBar={browserBar}
+            onBrowserBarChange={setBrowserBar}
+            browserUrl={browserUrlText}
+            onBrowserUrlChange={setBrowserUrlText}
+          />
+        </aside>
 
-      <main className="flex-1 p-4 lg:p-6 flex items-center justify-center overflow-hidden">
-        <PreviewArea
-          backgroundUrl={backgroundUrl}
-          backgroundType={backgroundType}
-          backgroundHint={backgroundHint}
-          overlayUrl={overlayUrl}
-          overlayType={overlayType}
-          overlayStyle={overlayStyle}
-          opacity={opacity} 
-          roundedCorners={roundedCorners}
-          cornerRadiusPreview={PREVIEW_CORNER_RADIUS_CSS}
-          browserBar={browserBar}
-          browserUrl={browserUrlText}
-          browserBarHeightChrome={BROWSER_BAR_HEIGHT_CHROME_PX}
-          browserBarHeightSafari={BROWSER_BAR_HEIGHT_SAFARI_PX}
-          onOverlayMouseDown={handleOverlayMouseDown}
-          isDragging={isDragging}
-        />
-      </main>
+        <main className="flex-1 p-4 lg:p-6 flex items-center justify-center overflow-hidden">
+          <PreviewArea
+            backgroundUrl={backgroundUrl}
+            backgroundType={backgroundType}
+            backgroundHint={backgroundHint}
+            overlayUrl={overlayUrl}
+            overlayType={overlayType}
+            overlayStyle={overlayStyle}
+            opacity={opacity} 
+            roundedCorners={roundedCorners}
+            cornerRadiusPreview={PREVIEW_CORNER_RADIUS_CSS}
+            browserBar={browserBar}
+            browserUrl={browserUrlText}
+            browserBarHeightChrome={BROWSER_BAR_HEIGHT_CHROME_PX}
+            browserBarHeightSafari={BROWSER_BAR_HEIGHT_SAFARI_PX}
+            onOverlayMouseDown={handleOverlayMouseDown}
+            isDragging={isDragging}
+          />
+        </main>
+        
+        <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
+          <BackgroundExportControls
+            onBackgroundChange={handleBackgroundFileChange}
+            defaultBackgrounds={defaultBackgrounds}
+            onSetDefaultBackground={handleSetDefaultBackground}
+          />
+        </aside>
+      </div>
       
-      <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
-        <BackgroundExportControls
-          onBackgroundChange={handleBackgroundFileChange}
-          defaultBackgrounds={defaultBackgrounds}
-          onSetDefaultBackground={handleSetDefaultBackground}
-          onExportImage={handleExportImage}
-          onExportVideo={handleExportVideo}
-          isExporting={isExporting}
-        />
-      </aside>
+      <footer className="p-4 lg:p-6 flex justify-center border-t border-border bg-card">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Download className="w-5 h-5 text-primary" />
+              Export Options
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button onClick={handleExportImage} className="w-full" disabled={isExporting}>
+              {isExporting ? 'Exporting Image...' : 'Export as Image'}
+              <ImageIconLucide className="ml-2 h-4 w-4" />
+            </Button>
+            <Button onClick={handleExportVideo} variant="outline" className="w-full" disabled={isExporting}>
+              {isExporting ? 'Exporting Video...' : 'Export as Video'}
+              <Video className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      </footer>
       <HiddenMediaForExport />
     </div>
   );

@@ -6,7 +6,8 @@ import FileUpload from './file-upload';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Download, Image as ImageIconLucide, Video } from 'lucide-react';
+import { Image as ImageIconLucide } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 interface DefaultBackgroundInfo {
   name: string;
@@ -18,18 +19,12 @@ interface BackgroundExportControlsProps {
   onBackgroundChange: (file: File | null) => void;
   defaultBackgrounds: DefaultBackgroundInfo[];
   onSetDefaultBackground: (defaultBg: DefaultBackgroundInfo) => void;
-  onExportImage: () => void;
-  onExportVideo: () => void;
-  isExporting: boolean;
 }
 
 const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
   onBackgroundChange,
   defaultBackgrounds,
   onSetDefaultBackground,
-  onExportImage,
-  onExportVideo,
-  isExporting,
 }) => {
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -65,30 +60,8 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
           />
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Download className="w-5 h-5 text-primary" />
-            Export Options
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button onClick={onExportImage} className="w-full" disabled={isExporting}>
-            {isExporting ? 'Exporting Image...' : 'Export as Image'}
-            <ImageIconLucide className="ml-2 h-4 w-4" />
-          </Button>
-          <Button onClick={onExportVideo} variant="outline" className="w-full" disabled={isExporting}>
-            {isExporting ? 'Exporting Video...' : 'Export as Video'}
-            <Video className="ml-2 h-4 w-4" />
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 };
-
-// Need to import Label for the default background section
-import { Label } from '@/components/ui/label';
 
 export default BackgroundExportControls;
