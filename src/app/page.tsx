@@ -80,10 +80,10 @@ export default function GlassViewPage() {
       const data = imageData.data;
       for (let i = 0; i < data.length; i += 4) {
         const val = Math.random() * 255;
-        data[i] = val;     // red
-        data[i + 1] = val; // green
-        data[i + 2] = val; // blue
-        data[i + 3] = 255; // alpha (fully opaque for the pattern itself)
+        data[i] = val;
+        data[i + 1] = val;
+        data[i + 2] = val;
+        data[i + 3] = 255;
       }
       ctx.putImageData(imageData, 0, 0);
       noiseCanvasRef.current = canvas;
@@ -105,44 +105,52 @@ export default function GlassViewPage() {
     }
   };
 
-  useEffect(() => {
-    let objectUrl: string | null = null;
-    if (backgroundFile && backgroundMode === 'custom') {
-      objectUrl = URL.createObjectURL(backgroundFile);
-      setBackgroundUrl(objectUrl);
-      setBackgroundType(backgroundFile.type.startsWith('image/') ? 'image' : 'video');
-      setBackgroundHint('custom background');
-    } else if (backgroundMode !== 'custom') {
-      const currentCustomUrl = backgroundFile ? URL.createObjectURL(backgroundFile) : null;
-      if (currentCustomUrl && backgroundUrl === currentCustomUrl) {
-         URL.revokeObjectURL(currentCustomUrl);
-      }
-    }
-    return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [backgroundFile, backgroundMode, backgroundUrl]);
-
-
-  const handleSetDefaultBackground = (defaultBg: DefaultBackground) => {
+  const handleSetDefaultBackground = useCallback((defaultBg: DefaultBackground) => {
     setBackgroundMode('default');
-    setBackgroundFile(null); // Clear custom file when selecting default
+    setBackgroundFile(null);
     setBackgroundUrl(defaultBg.url);
     setBackgroundType('image');
     setBackgroundHint(defaultBg.hint);
-  };
+  }, []);
 
+
+  // Effect for custom background file: creates and revokes its URL
   useEffect(() => {
-    if (backgroundMode === 'solid' || backgroundMode === 'transparent') {
+    if (backgroundFile && backgroundMode === 'custom') {
+      const newObjectUrl = URL.createObjectURL(backgroundFile);
+      setBackgroundUrl(newObjectUrl);
+      setBackgroundType(backgroundFile.type.startsWith('image/') ? 'image' : 'video');
+      setBackgroundHint('custom background');
+
+      return () => {
+        URL.revokeObjectURL(newObjectUrl);
+      };
+    }
+  }, [backgroundFile, backgroundMode]);
+
+  // Effect for background mode changes (solid, transparent, default) and cleanup of old blob URLs
+  useEffect(() => {
+    if (backgroundMode !== 'custom' && backgroundUrl && backgroundUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(backgroundUrl);
+    }
+
+    if (backgroundMode === 'solid') {
       setBackgroundUrl(null);
       setBackgroundType(null);
-      setBackgroundHint(backgroundMode === 'solid' ? 'solid color' : 'transparent background');
-    } else if (backgroundMode === 'default' && !backgroundUrl && defaultBackgrounds.length > 0) {
+      setBackgroundHint('solid color');
+    } else if (backgroundMode === 'transparent') {
+      setBackgroundUrl(null);
+      setBackgroundType(null);
+      setBackgroundHint('transparent background');
+    } else if (backgroundMode === 'default') {
+      const isCurrentBackgroundDefault = defaultBackgrounds.some(db => db.url === backgroundUrl);
+      if (!isCurrentBackgroundDefault && defaultBackgrounds.length > 0) {
         handleSetDefaultBackground(defaultBackgrounds[0]);
+      } else if (!backgroundUrl && defaultBackgrounds.length > 0) {
+        handleSetDefaultBackground(defaultBackgrounds[0]);
+      }
     }
-  }, [backgroundMode, backgroundUrl]);
+  }, [backgroundMode, defaultBackgrounds, handleSetDefaultBackground, backgroundUrl]);
 
 
   const handleOverlayFileChange = (file: File | null) => {
@@ -206,7 +214,7 @@ export default function GlassViewPage() {
   }, [isDragging, dragStartPoint]);
 
  const overlayStyle: React.CSSProperties = {
-    opacity: opacity, // Use dynamic opacity state for preview
+    opacity: opacity,
     transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px) scale(${scale}) rotate(${rotation}deg)`,
     filter: blurIntensity > 0 ? `blur(${blurIntensity}px)` : 'none',
     width: '100%',
@@ -301,13 +309,13 @@ export default function GlassViewPage() {
       ctx.restore();
     }
 
-    ctx.save();
+    ctx.save(); // Save for overlay group opacity and blur
     ctx.globalAlpha = opacity;
     if (blurIntensity > 0) {
       ctx.filter = `blur(${blurIntensity}px)`;
     }
 
-    ctx.save();
+    ctx.save(); // Save for overlay group transform
     const groupCenterX = canvas.width / 2 + overlayPosition.x;
     const groupCenterY = canvas.height / 2 + overlayPosition.y;
 
@@ -365,17 +373,19 @@ export default function GlassViewPage() {
                 naturalWidth,
                 naturalHeight
             );
+            const offsetY = overlayContentY + (overlayContentHeight - drawHeight) / 2; // Center vertically in the remaining space
+
             if (drawWidth > 0 && drawHeight > 0) {
-                 ctx.drawImage(ovMedia, offsetX, overlayContentY, drawWidth, drawHeight);
+                 ctx.drawImage(ovMedia, offsetX, offsetY, drawWidth, drawHeight);
             }
         }
     }
 
-    ctx.restore(); 
-    ctx.restore(); 
+    ctx.restore(); // Restore overlay group transform
+    ctx.restore(); // Restore overlay group opacity and blur
 
     if (roundedCorners) {
-      ctx.restore();
+      ctx.restore(); // Restore overall clip
     }
   }, [
       backgroundMode, solidBackgroundColor, backgroundUrl, backgroundType,
@@ -709,3 +719,5 @@ export default function GlassViewPage() {
     </div>
   );
 }
+
+    
