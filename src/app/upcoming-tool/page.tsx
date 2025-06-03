@@ -2,11 +2,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Eye } from "lucide-react";
+import { Terminal, Eye, ArrowLeft } from "lucide-react";
 
 const initialCode = `
 <div class="p-6 bg-card text-card-foreground rounded-lg shadow-md">
@@ -127,7 +128,15 @@ export default function SnippetPreviewerPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
-      <header className="p-4 border-b border-border">
+      <header className="p-4 border-b border-border flex items-center justify-between">
+        <Link href="/" passHref legacyBehavior>
+          <Button variant="outline" size="sm" asChild>
+            <a>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </a>
+          </Button>
+        </Link>
         <h1 className="text-2xl font-semibold text-primary">UI Snippet Previewer</h1>
       </header>
       <div className="flex flex-col lg:flex-row flex-grow gap-px bg-border overflow-hidden">
@@ -179,5 +188,3 @@ export default function SnippetPreviewerPage() {
     </div>
   );
 }
-
-    

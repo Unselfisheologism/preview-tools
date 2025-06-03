@@ -3,13 +3,14 @@
 
 import type React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import OverlayControls from '@/components/glass-view/overlay-controls';
 import BackgroundExportControls from '@/components/glass-view/background-export-controls';
 import PreviewArea from '@/components/glass-view/preview-area';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Image as ImageIconLucide } from 'lucide-react';
+import { Download, Image as ImageIconLucide, ArrowLeft } from 'lucide-react';
 
 const EXPORT_CORNER_RADIUS = 30;
 const PREVIEW_CORNER_RADIUS_CSS = '20px';
@@ -63,7 +64,7 @@ export default function GlassViewPage() {
   const [browserUrlText, setBrowserUrlText] = useState('example.com');
 
   const [isExporting, setIsExporting] = useState(false);
-  const animationFrameIdRef = useRef<number | undefined>(undefined);
+  // Removed animationFrameIdRef as video export is removed
 
 
   useEffect(() => {
@@ -117,11 +118,11 @@ export default function GlassViewPage() {
       setBackgroundHint('custom background');
     }
     return () => {
-      if (objectUrl && backgroundMode === 'custom' && backgroundFile) {
+      if (objectUrl && backgroundFile) { // No need to check backgroundMode here, if objectUrl exists for this file, revoke it
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [backgroundFile, backgroundMode]);
+  }, [backgroundFile, backgroundMode]); // Removed backgroundUrl
 
   useEffect(() => {
     const currentBackgroundUrlIsBlob = backgroundUrl?.startsWith('blob:') ?? false;
@@ -143,7 +144,8 @@ export default function GlassViewPage() {
          }
       }
     }
-  }, [backgroundMode, handleSetDefaultBackground, backgroundUrl, defaultBackgrounds]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backgroundMode, handleSetDefaultBackground]); // Removed backgroundUrl, defaultBackgrounds
 
 
   const handleOverlayFileChange = (file: File | null) => {
@@ -470,6 +472,16 @@ export default function GlassViewPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
+      <header className="p-4 border-b border-border bg-card">
+        <Link href="/" passHref legacyBehavior>
+          <Button variant="outline" size="sm" asChild>
+            <a>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </a>
+          </Button>
+        </Link>
+      </header>
       <div className="flex flex-row flex-1 overflow-hidden">
         <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
           <OverlayControls
@@ -560,7 +572,6 @@ export default function GlassViewPage() {
               {isExporting ? 'Exporting Image...' : 'Export as Image'}
               <ImageIconLucide className="ml-2 h-4 w-4" />
             </Button>
-            {/* Video export button and functionality removed */}
           </CardContent>
         </Card>
       </footer>
