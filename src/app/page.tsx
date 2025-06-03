@@ -69,6 +69,8 @@ export default function GlassViewPage() {
   const [browserUrlText, setBrowserUrlText] = useState('example.com');
 
   const [isExporting, setIsExporting] = useState(false);
+  const animationFrameIdRef = useRef<number | undefined>();
+
 
   useEffect(() => {
     const canvas = document.createElement('canvas');
@@ -107,9 +109,9 @@ export default function GlassViewPage() {
 
   const handleSetDefaultBackground = useCallback((defaultBg: DefaultBackground) => {
     setBackgroundMode('default');
-    setBackgroundFile(null);
+    setBackgroundFile(null); // Clear any custom file
     setBackgroundUrl(defaultBg.url);
-    setBackgroundType('image');
+    setBackgroundType('image'); // Assuming defaults are images
     setBackgroundHint(defaultBg.hint);
   }, []);
 
@@ -122,8 +124,9 @@ export default function GlassViewPage() {
       setBackgroundType(backgroundFile.type.startsWith('image/') ? 'image' : 'video');
       setBackgroundHint('custom background');
     }
+    // Only revoke if this effect created the URL
     return () => {
-      if (objectUrl) {
+      if (objectUrl && backgroundMode === 'custom') {
         URL.revokeObjectURL(objectUrl);
       }
     };
@@ -133,22 +136,26 @@ export default function GlassViewPage() {
     const currentBackgroundUrlIsBlob = backgroundUrl?.startsWith('blob:') ?? false;
 
     if (backgroundMode === 'solid' || backgroundMode === 'transparent') {
-      if (currentBackgroundUrlIsBlob && backgroundUrl) URL.revokeObjectURL(backgroundUrl);
+      if (currentBackgroundUrlIsBlob && backgroundUrl) {
+         URL.revokeObjectURL(backgroundUrl);
+      }
       setBackgroundUrl(null);
       setBackgroundType(null);
       setBackgroundHint(backgroundMode === 'solid' ? 'solid color' : 'transparent background');
     } else if (backgroundMode === 'default') {
+      // If current URL is a blob (from a previous 'custom' mode), revoke it.
       if (currentBackgroundUrlIsBlob && backgroundUrl) {
         URL.revokeObjectURL(backgroundUrl);
       }
+      // Ensure a default background is set if none is, or if current isn't a default
       const isCurrentBackgroundDefault = defaultBackgrounds.some(db => db.url === backgroundUrl);
       if (!isCurrentBackgroundDefault || !backgroundUrl) {
-        if (defaultBackgrounds.length > 0) {
-         handleSetDefaultBackground(defaultBackgrounds[0]);
-        }
+         if (defaultBackgrounds.length > 0) {
+            handleSetDefaultBackground(defaultBackgrounds[0]);
+         }
       }
     }
-  }, [backgroundMode, handleSetDefaultBackground, defaultBackgrounds, backgroundUrl]);
+  }, [backgroundMode, handleSetDefaultBackground, backgroundUrl]); // Removed defaultBackgrounds from here, handleSetDefaultBackground has it
 
 
   const handleOverlayFileChange = (file: File | null) => {
@@ -397,11 +404,11 @@ export default function GlassViewPage() {
         }
     }
 
-    ctx.restore();
-    ctx.restore();
+    ctx.restore(); // Restore from group transform
+    ctx.restore(); // Restore from opacity/blur
 
     if (roundedCorners) {
-      ctx.restore();
+      ctx.restore(); // Restore from rounded corners clip
     }
   }, [
       backgroundMode, solidBackgroundColor, backgroundUrl, backgroundType,
@@ -469,8 +476,8 @@ export default function GlassViewPage() {
                     bgMedia.onloadeddata = () => { if (bgMedia.videoWidth > 0) resolve(); else reject(new Error("Background video loaded but has no dimensions.")); };
                     bgMedia.onerror = () => reject(new Error("Error loading background video for export."));
                 }
-              } else {
-                resolve();
+              } else { // Should not happen if backgroundUrl is set for these modes
+                resolve(); // Or reject appropriately
               }
             });
         } catch(err: any) {
@@ -482,7 +489,7 @@ export default function GlassViewPage() {
 
         exportWidth = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoWidth || 1280) : ((bgMedia as HTMLImageElement).naturalWidth || 1280);
         exportHeight = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoHeight || 720) : ((bgMedia as HTMLImageElement).naturalHeight || 720);
-    } else if (overlayUrl) {
+    } else if (overlayUrl) { // Fallback to overlay dimensions if no background
         const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement | HTMLVideoElement;
          if (ovMedia) {
             try {
@@ -588,20 +595,12 @@ export default function GlassViewPage() {
     const bgVideo = document.getElementById('background-media-export') as HTMLVideoElement;
     const ovMediaElement = document.getElementById('overlay-media-export') as HTMLVideoElement | HTMLImageElement | null;
 
-    let animationFrameId: number | undefined;
     let recorder: MediaRecorder | null = null;
     let bgVideoEndedListener: (() => void) | null = null;
     let duration = 0;
 
     const cleanup = () => {
-      if (recorder && recorder.state === "recording") {
-        recorder.stop(); // This will trigger onstop
-      } else {
-        // If recorder is not recording or doesn't exist, manually set isExporting
-        setIsExporting(false);
-      }
-
-      if (bgVideo && bgVideoEndedListener) {
+      if (bgVideoEndedListener && bgVideo) {
         bgVideo.removeEventListener('ended', bgVideoEndedListener);
         bgVideoEndedListener = null;
       }
@@ -612,9 +611,17 @@ export default function GlassViewPage() {
         ovElementForPause.pause();
       }
 
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = undefined;
+      if (recorder && recorder.state === "recording") {
+        recorder.stop(); // This should trigger onstop
+      }
+      // If recorder exists but isn't recording, or doesn't exist, it won't call onstop
+      // so we need to ensure isExporting is false and animationFrameId is cleared.
+      if(!recorder || recorder.state !== "recording") {
+          setIsExporting(false);
+          if (animationFrameIdRef.current) {
+            cancelAnimationFrame(animationFrameIdRef.current);
+            animationFrameIdRef.current = undefined;
+          }
       }
     };
 
@@ -630,7 +637,7 @@ export default function GlassViewPage() {
         }
         if (!isFinite(bgVideo.duration) || bgVideo.duration <= 0) {
             toast({ title: "Export Warning", description: `Background video duration is invalid or not finite (${bgVideo.duration}). Export cannot proceed.`, variant: "destructive" });
-            cleanup(); // Call cleanup here
+            cleanup();
             return;
         }
         duration = bgVideo.duration;
@@ -648,7 +655,7 @@ export default function GlassViewPage() {
           throw new Error("Could not get canvas context.");
         }
 
-        const stream = canvas.captureStream(30);
+        const stream = canvas.captureStream(30); // 30 FPS
         recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
         const chunks: Blob[] = [];
 
@@ -658,21 +665,12 @@ export default function GlassViewPage() {
 
         recorder.onstop = () => {
           // Final cleanup activities that should happen after recorder stops
-          setIsExporting(false); // Ensure this is set
-          if (bgVideo && bgVideoEndedListener) {
-            bgVideo.removeEventListener('ended', bgVideoEndedListener);
-            bgVideoEndedListener = null;
+          // cleanup() will handle setIsExporting(false) and animationFrameIdRef.current
+          if (animationFrameIdRef.current) { // This check might be redundant if cleanup is always called
+             cancelAnimationFrame(animationFrameIdRef.current);
+             animationFrameIdRef.current = undefined;
           }
-          if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = undefined;
-          }
-          if (bgVideo) bgVideo.pause();
-          const ovElementForPause = document.getElementById('overlay-media-export');
-          if (ovElementForPause && ovElementForPause instanceof HTMLVideoElement) {
-            ovElementForPause.pause();
-          }
-
+          setIsExporting(false); // Ensure this is always set
 
           if (chunks.length === 0) {
             toast({ title: "Export Error", description: "No video data was recorded. The file might be empty.", variant: "destructive" });
@@ -689,7 +687,7 @@ export default function GlassViewPage() {
           URL.revokeObjectURL(url);
           toast({ title: "Export Successful", description: "Video downloaded." });
         };
-
+        
         recorder.onerror = (event) => {
           console.error("MediaRecorder error:", event);
           let errorMessage = "Video recording failed.";
@@ -698,12 +696,12 @@ export default function GlassViewPage() {
             errorMessage += ` ${recError.name || 'Unknown error'}: ${recError.message || ''}`;
           }
           toast({ title: "Export Error", description: errorMessage, variant: "destructive" });
-          cleanup();
+          cleanup(); // Call cleanup on recorder error
         };
 
         bgVideoEndedListener = () => {
             if (recorder && recorder.state === "recording") {
-                recorder.stop(); // This will trigger onstop, then cleanup
+                recorder.stop(); // This will trigger onstop, which should call cleanup
             }
         };
         bgVideo.addEventListener('ended', bgVideoEndedListener);
@@ -739,62 +737,52 @@ export default function GlassViewPage() {
             }
         }
 
-        if (bgVideo.paused && !bgVideo.ended) {
+        if (bgVideo.paused && !bgVideo.ended) { // Check after attempting to play
             throw new Error("Background video playback did not start or paused unexpectedly before recording could begin.");
         }
 
-        recorder.start();
+        recorder.start(); // Start recording
 
         const recordFrame = () => {
-          if (typeof animationFrameId === 'undefined' || !isExporting) {
-             // This means cleanup has run or isExporting was set to false elsewhere
-             // Ensure animation is stopped if it wasn't already
-             if (typeof animationFrameId !== 'undefined') {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = undefined;
-             }
+          // Primary exit: if animationFrameIdRef.current is undefined (set by cleanup)
+          if (animationFrameIdRef.current === undefined) {
             return;
           }
 
-          if (!bgVideo || !ctx || !recorder ) {
-            if (recorder && recorder.state === "recording") recorder.stop(); // Triggers onstop -> cleanup
-            else cleanup(); // Directly cleanup if recorder is not involved or already stopped
+          if (!bgVideo || !ctx || !recorder ) { // Should ideally not happen
+            if (recorder && recorder.state === "recording") recorder.stop();
+            else cleanup();
             return;
           }
 
-          let shouldStopLoopAndRecording = false;
+          let shouldStopRecording = false;
 
           if (bgVideo.ended) {
-            shouldStopLoopAndRecording = true;
+            shouldStopRecording = true;
           } else if (isFinite(duration) && bgVideo.currentTime >= duration) {
-            shouldStopLoopAndRecording = true;
-          } else if (bgVideo.paused && !bgVideo.ended && (!isFinite(duration) || bgVideo.currentTime < duration)) {
-            console.warn("Video paused unexpectedly during export. Stopping recording.");
-            toast({ title: "Export Warning", description: "Video playback paused unexpectedly. Export may be incomplete.", variant: "destructive" });
-            shouldStopLoopAndRecording = true;
+            shouldStopRecording = true;
+          } else if (bgVideo.paused && !bgVideo.ended) { // Unexpected pause
+            toast({ title: "Export Warning", description: "Video playback paused unexpectedly during export. Export may be incomplete.", variant: "destructive" });
+            shouldStopRecording = true;
           }
 
-          if (shouldStopLoopAndRecording) {
+          if (shouldStopRecording) {
             if (recorder.state === "recording") {
-              recorder.stop(); // This triggers onstop, which calls cleanup (setting isExporting=false and clearing animationFrameId)
+              recorder.stop(); // Triggers onstop -> cleanup
             } else {
-              // If recorder already stopped, ensure cleanup is called
-              cleanup();
+              cleanup(); // If recorder already stopped/error
             }
-            return;
+            return; // Stop requesting new frames
           }
 
           drawFrameOnCanvas(ctx, canvas);
-          if (isExporting && typeof animationFrameId !== 'undefined') { // Check again before requesting next frame
-            animationFrameId = requestAnimationFrame(recordFrame);
-          } else {
-             if (typeof animationFrameId !== 'undefined') {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = undefined;
-             }
+          
+          // Continue the loop only if animationFrameIdRef.current is still defined (i.e., cleanup hasn't run)
+          if (animationFrameIdRef.current !== undefined) {
+            animationFrameIdRef.current = requestAnimationFrame(recordFrame);
           }
         };
-        animationFrameId = requestAnimationFrame(recordFrame);
+        animationFrameIdRef.current = requestAnimationFrame(recordFrame); // Initialize the loop
 
     } catch (err: any) {
         toast({ title: "Export Error", description: err.message || "An unknown error occurred during video export setup.", variant: "destructive" });
@@ -803,7 +791,8 @@ export default function GlassViewPage() {
 
   }, [
     backgroundMode, backgroundUrl, backgroundType, overlayType, overlayUrl,
-    drawFrameOnCanvas, toast, isExporting, // isExporting IS a dependency here for the recordFrame closure
+    drawFrameOnCanvas, toast, solidBackgroundColor, // Added solidBackgroundColor
+    // Removed isExporting from here
   ]);
 
 
