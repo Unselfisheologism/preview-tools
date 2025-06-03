@@ -121,13 +121,21 @@ export default function SnippetPreviewerPage() {
         } else if (UserProvidedSnippet === undefined && window.reactRenderExecuted) {
           // Assume user's code called ReactDOM.render()
         } else {
-          const errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called.';
-          console.error(errorMsg, 'UserProvidedSnippet type:', typeof UserProvidedSnippet, 'UserProvidedSnippet value:', UserProvidedSnippet);
-          document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0;">' + errorMsg + ' Please ensure your snippet defines a React component and makes it the last expression (e.g., const MyComponent = () => { ... }; MyComponent;), or calls ReactDOM.render(). Do not use import/export statements.</div>';
+          let detail = '';
+          if (typeof UserProvidedSnippet !== 'undefined') {
+            let valueStr = String(UserProvidedSnippet);
+            if (valueStr.length > 150) valueStr = valueStr.substring(0, 150) + '... (truncated)';
+            detail = '(Received type: ' + (typeof UserProvidedSnippet) + ', value: ' + valueStr + ')';
+          } else {
+            detail = '(Received undefined from snippet evaluation)';
+          }
+          const errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called. ' + detail + '. Please ensure your snippet defines a React component and makes it the last expression (e.g., const MyComponent = () => { ... }; MyComponent;), or calls ReactDOM.render(). Do not use import/export statements.';
+          console.error('[Previewer Error]', errorMsg, 'UserProvidedSnippet:', UserProvidedSnippet, 'window.reactRenderExecuted:', window.reactRenderExecuted);
+          document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0; font-size: 12px; white-space: pre-wrap; word-break: break-all;">' + errorMsg + '</div>';
         }
       } catch (e) {
-        console.error("Error executing snippet:", e);
-        document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0;">Error: ' + e.message + '. Check console for details. Ensure your React code is valid and does not use import/export.</div>';
+        console.error("[Previewer Script Error] Error executing snippet:", e);
+        document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0; font-size: 12px;">Error: ' + e.message + '. Check browser console (iframe context) for details. Ensure your React code is valid and does not use import/export.</div>';
       }
     `;
 
