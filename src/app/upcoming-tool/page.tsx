@@ -10,8 +10,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, Eye, ArrowLeft, Info } from "lucide-react";
 
 const initialReactCode = `
-// Try creating a simple React component!
-// Example: A counter
+// React, ReactDOM, and hooks like React.useState are globally available.
+// No 'import React from "react";' statement is needed.
+
+// Example: A counter component
 const Counter = () => {
   const [count, setCount] = React.useState(0);
 
@@ -42,14 +44,9 @@ const Counter = () => {
   );
 };
 
-// This line will be added by the tool if you just provide a component:
-// ReactDOM.render(<Counter />, document.getElementById('react-root'));
-// For now, ensure your code evaluates to a single component like 'Counter' above.
-// Or, include the ReactDOM.render call yourself for more complex scenarios.
-
-// Render the Counter component (or your main component)
-// If your snippet defines multiple components, ensure the last one is the one to render,
-// or explicitly use ReactDOM.render.
+// IMPORTANT: To render your component, make sure its name
+// is the last expression in this snippet.
+// Do NOT use 'export default YourComponent;'
 Counter;
 `;
 
@@ -113,30 +110,24 @@ export default function SnippetPreviewerPage() {
   const handlePreview = useCallback(() => {
     if (!isClient || !iframeStyles) return;
 
-    // Attempt to wrap user code into a renderable script
-    // This assumes the user's code results in a single component definition
-    // or includes its own ReactDOM.render call.
     const userCodeProcessed = `
       try {
         const UserProvidedSnippet = (() => {
           ${code}
         })();
         
-        // If UserProvidedSnippet is a valid React element/component constructor
         if (UserProvidedSnippet && (typeof UserProvidedSnippet === 'function' || (typeof UserProvidedSnippet === 'object' && UserProvidedSnippet.$$typeof))) {
            ReactDOM.render(React.createElement(UserProvidedSnippet), document.getElementById('react-root'));
         } else if (UserProvidedSnippet === undefined && window.reactRenderExecuted) {
           // Assume user's code called ReactDOM.render()
         } else {
-          // Fallback or error for code that doesn't evaluate to a component
-          // or if ReactDOM.render was not called by user's code.
           const errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called.';
           console.error(errorMsg);
-          document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0;">' + errorMsg + ' Please ensure your snippet defines a React component (e.g., const MyComponent = () => { ... }; MyComponent;), or calls ReactDOM.render().</div>';
+          document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0;">' + errorMsg + ' Please ensure your snippet defines a React component and makes it the last expression (e.g., const MyComponent = () => { ... }; MyComponent;), or calls ReactDOM.render(). Do not use import/export statements.</div>';
         }
       } catch (e) {
         console.error("Error executing snippet:", e);
-        document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0;">Error: ' + e.message + '. Check console for details.</div>';
+        document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0;">Error: ' + e.message + '. Check console for details. Ensure your React code is valid and does not use import/export.</div>';
       }
     `;
 
@@ -153,7 +144,6 @@ export default function SnippetPreviewerPage() {
       <body>
         <div id="react-root"></div>
         <script type="text/babel">
-          // This flag helps determine if the user's code explicitly called ReactDOM.render
           window.reactRenderExecuted = false;
           const originalRender = ReactDOM.render;
           ReactDOM.render = (...args) => {
@@ -203,12 +193,13 @@ export default function SnippetPreviewerPage() {
             />
              <Alert variant="default" className="mt-2 text-xs">
               <Info className="h-4 w-4" />
-              <AlertTitle className="font-semibold text-sm">How to Use</AlertTitle>
+              <AlertTitle className="font-semibold text-sm">How to Use This React Previewer</AlertTitle>
               <AlertDescription className="text-muted-foreground space-y-1">
-                <p>Write React JSX code. Your snippet should evaluate to a single React component (e.g., define a component and make it the last expression), or call <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM.render()</code> yourself.</p>
-                <p>Uses React, ReactDOM, and Babel (for JSX) from CDN.</p>
-                <p>Tailwind CSS (CDN version) and your app's theme variables are applied.</p>
-                <p><strong className="text-foreground">Limitation:</strong> Direct <code className="bg-muted px-1 py-0.5 rounded text-xs">import</code> of project components (like ShadCN UI) is <strong className="text-destructive">not supported</strong> yet. Define components within the snippet or use standard HTML elements.</p>
+                <p><strong className="text-foreground">React is Global:</strong> <code className="bg-muted px-1 py-0.5 rounded text-xs">React</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM</code>, and hooks (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">React.useState</code>) are pre-loaded from CDNs. Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">import React from 'react';</code>.</p>
+                <p><strong className="text-foreground">Component as Last Expression:</strong> Define your React component(s). To render a component, ensure its name is the final expression in your snippet (e.g., after defining <code className="bg-muted px-1 py-0.5 rounded text-xs">const MyComponent = () => { /* ... */ };</code>, add <code className="bg-muted px-1 py-0.5 rounded text-xs">MyComponent;</code> on the last line).</p>
+                <p><strong className="text-foreground">No Module Exports:</strong> Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">export default MyComponent;</code> or other export statements.</p>
+                <p><strong className="text-foreground">Styling:</strong> Tailwind CSS (CDN version) and your app's theme variables (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">text-primary</code>) are applied.</p>
+                <p><strong className="text-foreground">Project Component Imports:</strong> Direct <code className="bg-muted px-1 py-0.5 rounded text-xs">import</code> of project components (like ShadCN UI from <code className="bg-muted px-1 py-0.5 rounded text-xs">@/components/ui/*</code>) is <strong className="text-destructive">not supported</strong>. Define components within the snippet or use standard HTML elements styled with Tailwind.</p>
               </AlertDescription>
             </Alert>
             <Button onClick={handlePreview} disabled={!isClient || !iframeStyles} className="w-full mt-2">
@@ -231,7 +222,7 @@ export default function SnippetPreviewerPage() {
             <iframe
               srcDoc={iframeSrcDoc}
               title="React Snippet Preview"
-              sandbox="allow-scripts allow-same-origin" // allow-same-origin for potential style access, allow-scripts for react/babel
+              sandbox="allow-scripts allow-same-origin" 
               className="w-full h-full border-0"
             />
           </CardContent>
@@ -240,6 +231,3 @@ export default function SnippetPreviewerPage() {
     </div>
   );
 }
-
-
-    
