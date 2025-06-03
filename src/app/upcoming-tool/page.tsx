@@ -13,28 +13,33 @@ const initialReactCode = `
 // React, ReactDOM, and hooks like React.useState are globally available.
 // No 'import React from "react";' statement is needed.
 
-// Example: A counter component
-function Counter() {
+function MyTestComponent() {
   const [count, setCount] = React.useState(0);
+  const [showMessage, setShowMessage] = React.useState(false);
 
   return (
     <div className="p-6 bg-card text-card-foreground rounded-lg shadow-md max-w-md mx-auto">
       <h1 className="text-3xl font-bold text-primary mb-4">
-        React Counter Snippet
+        React Test Snippet
       </h1>
       <p className="text-muted-foreground mb-2">Current count: <span className="font-semibold text-lg text-accent">{count}</span></p>
+      
+      {showMessage && (
+        <p className="mt-2 text-green-500">This is a conditional message!</p>
+      )}
+      
       <div className="flex space-x-3 mt-4">
         <button 
           onClick={() => setCount(count + 1)}
           className="bg-primary text-primary-foreground px-5 py-2.5 rounded-md hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
-          Increment
+          Increment Count
         </button>
         <button 
-          onClick={() => setCount(count - 1)}
+          onClick={() => setShowMessage(!showMessage)}
           className="bg-secondary text-secondary-foreground px-5 py-2.5 rounded-md hover:bg-secondary/80 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
-          Decrement
+          Toggle Message
         </button>
       </div>
       <p className="text-xs text-muted-foreground mt-6">
@@ -47,7 +52,7 @@ function Counter() {
 // IMPORTANT: To render your component, make sure its name
 // is the last expression in this snippet.
 // Do NOT use 'export default YourComponent;'
-Counter;
+MyTestComponent;
 `;
 
 
@@ -102,6 +107,16 @@ export default function SnippetPreviewerPage() {
         #react-root {
           width: 100%; 
         }
+        .preview-error-box {
+          color: #721c24; /* dark red */
+          background-color: #f8d7da; /* light red */
+          border: 1px solid #f5c6cb; /* medium red */
+          padding: 15px;
+          border-radius: 4px;
+          font-size: 14px;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
       </style>
     `;
     setIframeStyles(styles);
@@ -113,7 +128,7 @@ export default function SnippetPreviewerPage() {
     const userCodeProcessed = `
       // Function to escape HTML, defined within the iframe's scope
       function escapeHtml(unsafe) {
-        if (typeof unsafe !== 'string') return ''; // Or handle non-string inputs as needed
+        if (typeof unsafe !== 'string') return '';
         return unsafe
              .replace(/&/g, "&amp;")
              .replace(/</g, "&lt;")
@@ -122,45 +137,53 @@ export default function SnippetPreviewerPage() {
              .replace(/'/g, "&#039;");
       }
 
-      window.reactRenderExecuted = false;
+      window.reactRenderExecuted = false; // To detect if user calls ReactDOM.render themselves
       const originalRender = ReactDOM.render;
       ReactDOM.render = (...args) => {
+        console.log('[Previewer] ReactDOM.render called by user snippet.');
         window.reactRenderExecuted = true;
         return originalRender(...args);
       };
 
-      console.log('[Previewer] Attempting to process user code:', ${JSON.stringify(code)});
-
+      console.log('[Previewer] Attempting to process user code with JSON.stringify:', ${JSON.stringify(code)});
+      
+      let UserProvidedSnippet = undefined;
       try {
-        const UserProvidedSnippet = (() => {
+        UserProvidedSnippet = (() => {
+          // User's code is injected and executed here by Babel
           ${code} 
         })();
         
-        console.log('[Previewer] IIFE result - UserProvidedSnippet:', UserProvidedSnippet, '(type: ' + (typeof UserProvidedSnippet) + ')');
+        console.log('[Previewer] IIFE evaluation result - UserProvidedSnippet:', UserProvidedSnippet, '(type: ' + (typeof UserProvidedSnippet) + ')');
 
-        if (UserProvidedSnippet && (typeof UserProvidedSnippet === 'function' || (typeof UserProvidedSnippet === 'object' && UserProvidedSnippet.$$typeof))) {
+        if (UserProvidedSnippet && typeof UserProvidedSnippet === 'function') {
+           console.log('[Previewer] Rendering UserProvidedSnippet as a function component.');
            ReactDOM.render(React.createElement(UserProvidedSnippet), document.getElementById('react-root'));
-        } else if (UserProvidedSnippet === undefined && window.reactRenderExecuted) {
-          console.log('[Previewer] UserProvidedSnippet is undefined, but reactRenderExecuted is true. Assuming user called ReactDOM.render().');
+        } else if (UserProvidedSnippet && typeof UserProvidedSnippet === 'object' && UserProvidedSnippet.$$typeof) {
+           console.log('[Previewer] Rendering UserProvidedSnippet as a React element (already created).');
+           ReactDOM.render(UserProvidedSnippet, document.getElementById('react-root'));
+        }
+        else if (window.reactRenderExecuted) {
+          console.log('[Previewer] UserProvidedSnippet is not a direct component/element, but reactRenderExecuted is true. Assuming user called ReactDOM.render().');
+          // No action needed here, user's ReactDOM.render call should have handled it.
         } else {
           let detail = '';
-          if (typeof UserProvidedSnippet !== 'undefined') {
+          if (typeof UserProvidedSnippet === 'undefined') {
+            detail = '(Received undefined from snippet evaluation)';
+          } else {
             let valueStr = String(UserProvidedSnippet);
             if (valueStr.length > 150) valueStr = valueStr.substring(0, 150) + '... (truncated)';
             detail = '(Received type: ' + (typeof UserProvidedSnippet) + ', value: ' + escapeHtml(valueStr) + ')';
-          } else {
-            detail = '(Received undefined from snippet evaluation)';
           }
-          const errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called. ' + detail + '. Please ensure your snippet defines a React component and makes it the last expression (e.g., const MyComponent = () => { ... }; MyComponent;), or calls ReactDOM.render(). Do not use import/export statements.';
+          const errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called directly in the snippet. ' + detail + '. Please ensure your snippet defines a React component and makes its name the last expression, or explicitly calls ReactDOM.render(). Do not use import/export statements.';
           console.error('[Previewer Error]', errorMsg, 'UserProvidedSnippet:', UserProvidedSnippet, 'window.reactRenderExecuted:', window.reactRenderExecuted);
-          document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0; font-size: 12px; white-space: pre-wrap; word-break: break-all;">' + escapeHtml(errorMsg) + '</div>';
+          document.getElementById('react-root').innerHTML = '<div class="preview-error-box">' + escapeHtml(errorMsg) + '</div>';
         }
       } catch (e) {
-        console.error("[Previewer Script Error] Error executing snippet:", e);
-        document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0; font-size: 12px;">Error: ' + escapeHtml(e.message) + '. Check browser console (iframe context) for details. Ensure your React code is valid and does not use import/export.</div>';
+        console.error("[Previewer Script Error] Error during snippet execution or rendering attempt:", e);
+        document.getElementById('react-root').innerHTML = '<div class="preview-error-box">RUNTIME ERROR: ' + escapeHtml(e.message) + '. Check browser console (iframe context) for details.</div>';
       }
     `;
-
 
     const srcDocContent = `
       <!DOCTYPE html>
@@ -183,10 +206,11 @@ export default function SnippetPreviewerPage() {
   }, [code, iframeStyles, isClient]);
 
   useEffect(() => {
-    if (iframeStyles) { 
+    if (isClient && iframeStyles) { 
       handlePreview();
     }
-  }, [code, iframeStyles, handlePreview]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, iframeStyles, isClient]); // handlePreview is not needed as a dependency here if it's stable or only relies on its own args/closure
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
@@ -200,7 +224,7 @@ export default function SnippetPreviewerPage() {
           </Button>
         </Link>
         <h1 className="text-2xl font-semibold text-primary">React UI Snippet Previewer</h1>
-         <div /> 
+         <div style={{width: '90px'}} /> {/* Spacer to balance the back button */}
       </header>
       <div className="flex flex-col lg:flex-row flex-grow gap-px bg-border overflow-hidden">
         <Card className="w-full lg:w-1/2 flex flex-col rounded-none border-0 lg:border-r lg:border-border">
@@ -219,13 +243,13 @@ export default function SnippetPreviewerPage() {
               <Info className="h-4 w-4" />
               <AlertTitle className="font-semibold text-sm">How to Use This React Previewer</AlertTitle>
               <AlertDescription className="text-muted-foreground space-y-1">
-                <p><strong className="text-foreground">React is Global:</strong> <code className="bg-muted px-1 py-0.5 rounded text-xs">React</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM</code>, and hooks (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">React.useState</code>) are pre-loaded from CDNs. Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">import React from 'react';</code>.</p>
+                <p><strong className="text-foreground">React is Global:</strong> <code className="bg-muted px-1 py-0.5 rounded text-xs">React</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM</code>, and hooks (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">React.useState</code>) are pre-loaded. Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">import React from 'react';</code>.</p>
                 <p><strong className="text-foreground">Component Definition:</strong> Define your React component, for example, as <code className="bg-muted px-1 py-0.5 rounded text-xs">function MyComponent() { /* ... */ }</code> or <code className="bg-muted px-1 py-0.5 rounded text-xs">const MyComponent = () => { /* ... */ };</code>.</p>
-                <p><strong className="text-foreground">Render by Last Expression:</strong> To render your component, ensure its name is the <strong className="text-accent">final expression</strong> in your snippet. For instance, after defining your component, add <code className="bg-muted px-1 py-0.5 rounded text-xs">MyComponent;</code> on the very last line.</p>
-                <p><strong className="text-foreground">Alternative: Direct Render Call:</strong> Alternatively, you can directly call <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM.render(&lt;YourComponent /&gt;, document.getElementById('react-root'));</code> within your snippet. If you do this, you don't need the component name as the last expression.</p>
-                <p><strong className="text-foreground">No Module Exports:</strong> Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">export default MyComponent;</code> or other ES module export statements.</p>
-                <p><strong className="text-foreground">Styling:</strong> Tailwind CSS (CDN version) and your app's theme variables (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">text-primary</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">bg-card</code>) are applied to the preview.</p>
-                <p><strong className="text-foreground">Project Component Imports:</strong> Direct <code className="bg-muted px-1 py-0.5 rounded text-xs">import</code> of project components (like ShadCN UI from <code className="bg-muted px-1 py-0.5 rounded text-xs">@/components/ui/*</code>) is <strong className="text-destructive">not supported</strong>. Define components within the snippet or use standard HTML elements styled with Tailwind.</p>
+                <p><strong className="text-foreground">Render by Last Expression:</strong> To render your component, ensure its name is the <strong className="text-accent">final expression</strong> in your snippet (e.g., after defining <code className="bg-muted px-1 py-0.5 rounded text-xs">MyComponent</code>, add <code className="bg-muted px-1 py-0.5 rounded text-xs">MyComponent;</code> on the last line).</p>
+                <p><strong className="text-foreground">Alternative - Direct Render:</strong> You can call <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM.render(&lt;YourComponent /&gt;, document.getElementById('react-root'));</code> directly in your snippet. If so, the "last expression" rule is not needed.</p>
+                <p><strong className="text-foreground">No Module Exports:</strong> Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">export default MyComponent;</code>.</p>
+                <p><strong className="text-foreground">Styling:</strong> Tailwind CSS (CDN) and your app's theme variables (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">text-primary</code>) are applied.</p>
+                <p><strong className="text-foreground">Project Component Imports:</strong> Direct <code className="bg-muted px-1 py-0.5 rounded text-xs">import</code> of project components (like ShadCN UI) is <strong className="text-destructive">not supported</strong>. Define components within the snippet or use standard HTML styled with Tailwind.</p>
               </AlertDescription>
             </Alert>
             <Button onClick={handlePreview} disabled={!isClient || !iframeStyles} className="w-full mt-2">
