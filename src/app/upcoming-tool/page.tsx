@@ -107,19 +107,21 @@ export default function SnippetPreviewerPage() {
     setIframeStyles(styles);
   }, [isClient]);
 
-  const escapeHtml = (unsafe: string) => {
-    return unsafe
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
-  }
-
   const handlePreview = useCallback(() => {
     if (!isClient || !iframeStyles) return;
 
     const userCodeProcessed = `
+      // Function to escape HTML, defined within the iframe's scope
+      function escapeHtml(unsafe) {
+        if (typeof unsafe !== 'string') return ''; // Or handle non-string inputs as needed
+        return unsafe
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+      }
+
       window.reactRenderExecuted = false;
       const originalRender = ReactDOM.render;
       ReactDOM.render = (...args) => {
@@ -171,7 +173,7 @@ export default function SnippetPreviewerPage() {
       </head>
       <body>
         <div id="react-root"></div>
-        <script type="text/babel">
+        <script type="text/babel" data-presets="react">
           ${userCodeProcessed}
         </script>
       </body>
@@ -255,3 +257,5 @@ export default function SnippetPreviewerPage() {
     </div>
   );
 }
+
+    
