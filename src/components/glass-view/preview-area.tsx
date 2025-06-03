@@ -120,7 +120,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
     flex: 1,
     width: '100%',
     position: 'relative',
-    overflow: 'hidden', // Ensure media is clipped by its own container
+    overflow: 'hidden', 
   };
 
   if (roundedCorners) {
@@ -146,12 +146,13 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
         <Image
           src={backgroundUrl}
           alt="Background"
-          layout="fill"
+          fill
           style={backgroundElementStyle}
           className="transition-opacity duration-300 ease-in-out"
           data-ai-hint={backgroundHint || 'abstract background'}
           priority={backgroundUrl.startsWith('http')}
           unoptimized={backgroundUrl.startsWith('blob:')}
+          sizes="100vw"
         />
       )}
       {(backgroundMode !== 'solid' && backgroundMode !== 'transparent') && !backgroundUrl && (
@@ -169,7 +170,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
       {overlayUrl && (
         <div
           className={cn("absolute")}
-          style={overlayStyle} // Apply the overlayStyle directly
+          style={overlayStyle} 
           onMouseDown={onOverlayMouseDown}
         >
           <div style={overlayClipContainerStyle}>
@@ -194,11 +195,11 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
               <Image
                 src={overlayUrl}
                 alt="Overlay Content"
-                layout="fill"
-                objectFit="contain"
-                objectPosition="center top"
+                fill
+                style={{ objectFit: 'contain', objectPosition: 'center top'}}
                 data-ai-hint="user interface"
                 unoptimized={overlayUrl.startsWith('blob:')}
+                sizes="100vw"
               />
             </div>
           </div>
@@ -209,3 +210,4 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
 };
 
 export default PreviewArea;
+

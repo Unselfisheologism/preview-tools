@@ -232,7 +232,7 @@ export default function SnippetPreviewerPage() {
             <iframe
               srcDoc={iframeSrcDoc}
               title="React Snippet Preview"
-              sandbox="allow-scripts allow-same-origin" 
+              sandbox="allow-scripts"
               className="w-full h-full border-0"
             />
           </CardContent>
@@ -241,4 +241,3 @@ export default function SnippetPreviewerPage() {
     </div>
   );
 }
-
