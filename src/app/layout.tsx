@@ -1,10 +1,11 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Glass View',
-  description: 'Smart glasses screenshot preview tool',
+  title: 'Studio Tools - Creative Utilities',
+  description: 'A suite of tools for designers and developers, including Glass View and more.',
 };
 
 export default function RootLayout({
