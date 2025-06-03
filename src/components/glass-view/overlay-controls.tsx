@@ -58,8 +58,8 @@ const OverlayControls: React.FC<OverlayControlsProps> = ({
         <CardContent>
           <FileUpload
             id="overlay-upload"
-            label="Upload Overlay (Image/Video)"
-            accept="image/*,video/*"
+            label="Upload Overlay Image"
+            accept="image/*"
             onFileChange={onOverlayChange}
           />
         </CardContent>

@@ -9,7 +9,7 @@ import PreviewArea from '@/components/glass-view/preview-area';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Image as ImageIconLucide, Video } from 'lucide-react';
+import { Download, Image as ImageIconLucide } from 'lucide-react';
 
 const EXPORT_CORNER_RADIUS = 30;
 const PREVIEW_CORNER_RADIUS_CSS = '20px';
@@ -36,7 +36,6 @@ export default function GlassViewPage() {
   const [backgroundMode, setBackgroundMode] = useState<'default' | 'custom' | 'solid' | 'transparent'>('default');
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(defaultBackgrounds[0].url);
-  const [backgroundType, setBackgroundType] = useState<'image' | 'video' | null>('image');
   const [backgroundHint, setBackgroundHint] = useState<string | null>(defaultBackgrounds[0].hint);
   const [solidBackgroundColor, setSolidBackgroundColor] = useState<string>('#FFFFFF');
 
@@ -54,7 +53,6 @@ export default function GlassViewPage() {
   // Overlay State
   const [overlayFile, setOverlayFile] = useState<File | null>(null);
   const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
-  const [overlayType, setOverlayType] = useState<'image' | 'video' | null>(null);
   const [opacity, setOpacity] = useState(0.7);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -69,7 +67,6 @@ export default function GlassViewPage() {
   const [browserUrlText, setBrowserUrlText] = useState('example.com');
 
   const [isExporting, setIsExporting] = useState(false);
-  const animationFrameIdRef = useRef<number | undefined>();
 
 
   useEffect(() => {
@@ -111,7 +108,6 @@ export default function GlassViewPage() {
     setBackgroundMode('default');
     setBackgroundFile(null); // Clear any custom file
     setBackgroundUrl(defaultBg.url);
-    setBackgroundType('image'); // Assuming defaults are images
     setBackgroundHint(defaultBg.hint);
   }, []);
 
@@ -121,12 +117,10 @@ export default function GlassViewPage() {
     if (backgroundFile && backgroundMode === 'custom') {
       objectUrl = URL.createObjectURL(backgroundFile);
       setBackgroundUrl(objectUrl);
-      setBackgroundType(backgroundFile.type.startsWith('image/') ? 'image' : 'video');
       setBackgroundHint('custom background');
     }
-    // Only revoke if this effect created the URL
     return () => {
-      if (objectUrl && backgroundMode === 'custom') {
+      if (objectUrl && backgroundMode === 'custom' && backgroundFile) { // Ensure it's this specific objectURL
         URL.revokeObjectURL(objectUrl);
       }
     };
@@ -140,14 +134,11 @@ export default function GlassViewPage() {
          URL.revokeObjectURL(backgroundUrl);
       }
       setBackgroundUrl(null);
-      setBackgroundType(null);
       setBackgroundHint(backgroundMode === 'solid' ? 'solid color' : 'transparent background');
     } else if (backgroundMode === 'default') {
-      // If current URL is a blob (from a previous 'custom' mode), revoke it.
       if (currentBackgroundUrlIsBlob && backgroundUrl) {
         URL.revokeObjectURL(backgroundUrl);
       }
-      // Ensure a default background is set if none is, or if current isn't a default
       const isCurrentBackgroundDefault = defaultBackgrounds.some(db => db.url === backgroundUrl);
       if (!isCurrentBackgroundDefault || !backgroundUrl) {
          if (defaultBackgrounds.length > 0) {
@@ -155,7 +146,7 @@ export default function GlassViewPage() {
          }
       }
     }
-  }, [backgroundMode, handleSetDefaultBackground, backgroundUrl]); // Removed defaultBackgrounds from here, handleSetDefaultBackground has it
+  }, [backgroundMode, handleSetDefaultBackground, backgroundUrl, defaultBackgrounds]);
 
 
   const handleOverlayFileChange = (file: File | null) => {
@@ -167,13 +158,11 @@ export default function GlassViewPage() {
     if (overlayFile) {
       newUrl = URL.createObjectURL(overlayFile);
       setOverlayUrl(newUrl);
-      setOverlayType(overlayFile.type.startsWith('image/') ? 'image' : 'video');
     } else {
       setOverlayUrl(null);
-      setOverlayType(null);
     }
     return () => {
-      if (newUrl) {
+      if (newUrl && overlayFile) { // Ensure it's this specific objectURL
         URL.revokeObjectURL(newUrl);
       }
     };
@@ -266,8 +255,8 @@ export default function GlassViewPage() {
     } else if (backgroundMode === 'transparent') {
       // Canvas is already clear for transparency
     } else if ((backgroundMode === 'custom' || backgroundMode === 'default') && backgroundUrl) {
-      const bgMedia = document.getElementById('background-media-export') as HTMLImageElement | HTMLVideoElement;
-      if (bgMedia) {
+      const bgMedia = document.getElementById('background-media-export') as HTMLImageElement;
+      if (bgMedia && bgMedia instanceof HTMLImageElement && bgMedia.complete) {
         ctx.save();
         const filters = [];
         if (backgroundEffectBlur > 0) filters.push(`blur(${backgroundEffectBlur}px)`);
@@ -276,19 +265,8 @@ export default function GlassViewPage() {
         if (backgroundEffectSaturation !== 1) filters.push(`saturate(${backgroundEffectSaturation})`);
         if (filters.length > 0) ctx.filter = filters.join(' ');
 
-        let mediaNaturalWidth = 0;
-        let mediaNaturalHeight = 0;
-
-        if (backgroundType === 'image' && bgMedia instanceof HTMLImageElement && bgMedia.complete) {
-          mediaNaturalWidth = bgMedia.naturalWidth;
-          mediaNaturalHeight = bgMedia.naturalHeight;
-        } else if (backgroundType === 'video' && bgMedia instanceof HTMLVideoElement && bgMedia.readyState >= 2 /*HAVE_CURRENT_DATA*/) {
-          mediaNaturalWidth = bgMedia.videoWidth;
-          mediaNaturalHeight = bgMedia.videoHeight;
-        }
-
-        if (mediaNaturalWidth > 0 && mediaNaturalHeight > 0) {
-           const { drawWidth, drawHeight, offsetX, offsetY } = getContainSize(canvas.width, canvas.height, mediaNaturalWidth, mediaNaturalHeight);
+        if (bgMedia.naturalWidth > 0 && bgMedia.naturalHeight > 0) {
+           const { drawWidth, drawHeight, offsetX, offsetY } = getContainSize(canvas.width, canvas.height, bgMedia.naturalWidth, bgMedia.naturalHeight);
            ctx.drawImage(bgMedia, offsetX, offsetY, drawWidth, drawHeight);
         }
         ctx.restore();
@@ -374,27 +352,17 @@ export default function GlassViewPage() {
     }
 
     // Draw Overlay Media
-    const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement | HTMLVideoElement;
-    if (ovMedia) {
-        let naturalWidth = 0;
-        let naturalHeight = 0;
-        if (overlayType === 'image' && ovMedia instanceof HTMLImageElement && ovMedia.complete) {
-            naturalWidth = ovMedia.naturalWidth;
-            naturalHeight = ovMedia.naturalHeight;
-        } else if (overlayType === 'video' && ovMedia instanceof HTMLVideoElement && ovMedia.readyState >=2 /*HAVE_CURRENT_DATA*/) {
-            naturalWidth = ovMedia.videoWidth;
-            naturalHeight = ovMedia.videoHeight;
-        }
-
-        if (naturalWidth > 0 && naturalHeight > 0) {
+    const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement;
+    if (ovMedia && ovMedia instanceof HTMLImageElement && ovMedia.complete) {
+        if (ovMedia.naturalWidth > 0 && ovMedia.naturalHeight > 0) {
             const overlayContentY = browserBar !== 'none' ? currentBrowserBarHeight : 0;
             const overlayContentHeight = canvas.height - overlayContentY;
 
             const { drawWidth, drawHeight, offsetX } = getContainSize(
                 canvas.width,
                 overlayContentHeight,
-                naturalWidth,
-                naturalHeight
+                ovMedia.naturalWidth,
+                ovMedia.naturalHeight
             );
             const offsetYForMedia = overlayContentY + (overlayContentHeight - drawHeight) / 2;
 
@@ -411,10 +379,9 @@ export default function GlassViewPage() {
       ctx.restore(); // Restore from rounded corners clip
     }
   }, [
-      backgroundMode, solidBackgroundColor, backgroundUrl, backgroundType,
+      backgroundMode, solidBackgroundColor, backgroundUrl,
       backgroundEffectBlur, backgroundEffectBrightness, backgroundEffectContrast, backgroundEffectSaturation,
       backgroundEffectVignette, backgroundEffectNoise, activeVfx,
-      overlayType,
       opacity, scale, rotation, blurIntensity,
       overlayPosition,
       roundedCorners, browserBar, browserUrlText,
@@ -445,7 +412,7 @@ export default function GlassViewPage() {
   const handleExportImage = useCallback(async () => {
     if (backgroundMode === 'default' || backgroundMode === 'custom') {
       if (!backgroundUrl) {
-         toast({ title: "Export Error", description: "Please select or upload a background image/video first for this mode.", variant: "destructive" });
+         toast({ title: "Export Error", description: "Please select or upload a background image first for this mode.", variant: "destructive" });
          return;
       }
     }
@@ -456,7 +423,7 @@ export default function GlassViewPage() {
     let exportHeight = 720;
 
     if ((backgroundMode === 'default' || backgroundMode === 'custom') && backgroundUrl) {
-        const bgMedia = document.getElementById('background-media-export') as HTMLImageElement | HTMLVideoElement;
+        const bgMedia = document.getElementById('background-media-export') as HTMLImageElement;
         if (!bgMedia) {
             setIsExporting(false);
             toast({ title: "Export Error", description: "Background media element not found.", variant: "destructive" });
@@ -464,20 +431,14 @@ export default function GlassViewPage() {
         }
         try {
             await new Promise<void>((resolve, reject) => {
-              if (backgroundType === 'image' && bgMedia instanceof HTMLImageElement) {
+              if (bgMedia instanceof HTMLImageElement) {
                 if (bgMedia.complete && bgMedia.naturalWidth > 0) resolve();
                 else {
                     bgMedia.onload = () => { if (bgMedia.naturalWidth > 0) resolve(); else reject(new Error("Background image loaded but has no dimensions.")); };
                     bgMedia.onerror = () => reject(new Error("Error loading background image for export."));
                 }
-              } else if (backgroundType === 'video' && bgMedia instanceof HTMLVideoElement) {
-                if (bgMedia.readyState >= 2 && bgMedia.videoWidth > 0) resolve();
-                else {
-                    bgMedia.onloadeddata = () => { if (bgMedia.videoWidth > 0) resolve(); else reject(new Error("Background video loaded but has no dimensions.")); };
-                    bgMedia.onerror = () => reject(new Error("Error loading background video for export."));
-                }
-              } else { // Should not happen if backgroundUrl is set for these modes
-                resolve(); // Or reject appropriately
+              } else {
+                reject(new Error("Background media is not an image."));
               }
             });
         } catch(err: any) {
@@ -485,38 +446,27 @@ export default function GlassViewPage() {
             toast({ title: "Media Load Error", description: err.message, variant: "destructive" });
             return;
         }
+        exportWidth = bgMedia.naturalWidth || 1280;
+        exportHeight = bgMedia.naturalHeight || 720;
 
-
-        exportWidth = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoWidth || 1280) : ((bgMedia as HTMLImageElement).naturalWidth || 1280);
-        exportHeight = bgMedia instanceof HTMLVideoElement ? (bgMedia.videoHeight || 720) : ((bgMedia as HTMLImageElement).naturalHeight || 720);
-    } else if (overlayUrl) { // Fallback to overlay dimensions if no background
-        const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement | HTMLVideoElement;
-         if (ovMedia) {
+    } else if (overlayUrl) {
+        const ovMedia = document.getElementById('overlay-media-export') as HTMLImageElement;
+         if (ovMedia && ovMedia instanceof HTMLImageElement) {
             try {
                 await new Promise<void>((resolve, reject) => {
-                    if (overlayType === 'image' && ovMedia instanceof HTMLImageElement) {
-                        if (ovMedia.complete && ovMedia.naturalWidth > 0) resolve();
-                        else {
-                            ovMedia.onload = () => { if (ovMedia.naturalWidth > 0) resolve(); else reject(new Error("Overlay image loaded but has no dimensions.")); };
-                            ovMedia.onerror = () => reject(new Error("Error loading overlay image for export."));
-                        }
-                    } else if (overlayType === 'video' && ovMedia instanceof HTMLVideoElement) {
-                        if (ovMedia.readyState >= 2 && ovMedia.videoWidth > 0) resolve();
-                        else {
-                            ovMedia.onloadeddata = () => { if (ovMedia.videoWidth > 0) resolve(); else reject(new Error("Overlay video loaded but has no dimensions."));};
-                            ovMedia.onerror = () => reject(new Error("Error loading overlay video for export."));
-                        }
-                    } else { resolve(); }
+                    if (ovMedia.complete && ovMedia.naturalWidth > 0) resolve();
+                    else {
+                        ovMedia.onload = () => { if (ovMedia.naturalWidth > 0) resolve(); else reject(new Error("Overlay image loaded but has no dimensions.")); };
+                        ovMedia.onerror = () => reject(new Error("Error loading overlay image for export."));
+                    }
                 });
             } catch(err: any) {
                 setIsExporting(false);
                 toast({ title: "Overlay Media Load Error", description: err.message, variant: "destructive" });
                 return;
             }
-
-
-            exportWidth = ovMedia instanceof HTMLVideoElement ? (ovMedia.videoWidth || 1280) : ((ovMedia as HTMLImageElement).naturalWidth || 1280);
-            exportHeight = ovMedia instanceof HTMLVideoElement ? (ovMedia.videoHeight || 720) : ((ovMedia as HTMLImageElement).naturalHeight || 720);
+            exportWidth = ovMedia.naturalWidth || 1280;
+            exportHeight = ovMedia.naturalHeight || 720;
         }
     }
 
@@ -551,257 +501,15 @@ export default function GlassViewPage() {
     }, 'image/png');
 
   }, [
-    backgroundMode, backgroundUrl, backgroundType, solidBackgroundColor, overlayUrl, overlayType,
+    backgroundMode, backgroundUrl, solidBackgroundColor, overlayUrl,
     drawFrameOnCanvas, toast,
-  ]);
-
-  const waitForVideoEvent = (video: HTMLVideoElement, eventName: string) => {
-    return new Promise<void>((resolve, reject) => {
-      const onEvent = () => {
-        video.removeEventListener(eventName, onEvent);
-        video.removeEventListener('error', onError);
-        resolve();
-      };
-      const onError = (e: Event) => {
-        video.removeEventListener(eventName, onEvent);
-        video.removeEventListener('error', onError);
-        const error = video.error;
-        let message = `Video emitted an error: ${e.type}.`;
-        if (error) {
-          message += ` Code: ${error.code}, Message: ${error.message}`;
-        } else {
-            const target = e.target as HTMLVideoElement;
-            if(target && target.error) {
-                 message += ` Code: ${target.error.code}, Message: ${target.error.message}`;
-            } else {
-                 message += ` Playback was likely interrupted or the source is invalid.`;
-            }
-        }
-        reject(new Error(message));
-      };
-      video.addEventListener(eventName, onEvent);
-      video.addEventListener('error', onError);
-    });
-  };
-
-
-  const handleExportVideo = useCallback(async () => {
-    if (!((backgroundMode === 'default' || backgroundMode === 'custom') && backgroundType === 'video' && backgroundUrl)) {
-      toast({ title: "Export Error", description: "Video export currently requires a video background.", variant: "destructive" });
-      return;
-    }
-    setIsExporting(true);
-
-    const bgVideo = document.getElementById('background-media-export') as HTMLVideoElement;
-    const ovMediaElement = document.getElementById('overlay-media-export') as HTMLVideoElement | HTMLImageElement | null;
-
-    let recorder: MediaRecorder | null = null;
-    let bgVideoEndedListener: (() => void) | null = null;
-    let duration = 0;
-
-    const cleanup = () => {
-      if (bgVideoEndedListener && bgVideo) {
-        bgVideo.removeEventListener('ended', bgVideoEndedListener);
-        bgVideoEndedListener = null;
-      }
-      if (bgVideo) bgVideo.pause();
-
-      const ovElementForPause = document.getElementById('overlay-media-export');
-      if (ovElementForPause && ovElementForPause instanceof HTMLVideoElement) {
-        ovElementForPause.pause();
-      }
-
-      if (recorder && recorder.state === "recording") {
-        recorder.stop(); // This should trigger onstop
-      }
-      // If recorder exists but isn't recording, or doesn't exist, it won't call onstop
-      // so we need to ensure isExporting is false and animationFrameId is cleared.
-      if(!recorder || recorder.state !== "recording") {
-          setIsExporting(false);
-          if (animationFrameIdRef.current) {
-            cancelAnimationFrame(animationFrameIdRef.current);
-            animationFrameIdRef.current = undefined;
-          }
-      }
-    };
-
-
-    try {
-        if (!bgVideo) {
-            throw new Error("Background video element not found.");
-        }
-
-        await waitForVideoEvent(bgVideo, 'loadeddata');
-        if (!(bgVideo.videoWidth > 0 && bgVideo.videoHeight > 0)) {
-            throw new Error("Background video metadata loaded but has no valid dimensions.");
-        }
-        if (!isFinite(bgVideo.duration) || bgVideo.duration <= 0) {
-            toast({ title: "Export Warning", description: `Background video duration is invalid or not finite (${bgVideo.duration}). Export cannot proceed.`, variant: "destructive" });
-            cleanup();
-            return;
-        }
-        duration = bgVideo.duration;
-
-
-        const exportWidth = bgVideo.videoWidth;
-        const exportHeight = bgVideo.videoHeight;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = exportWidth;
-        canvas.height = exportHeight;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) {
-          throw new Error("Could not get canvas context.");
-        }
-
-        const stream = canvas.captureStream(30); // 30 FPS
-        recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-        const chunks: Blob[] = [];
-
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunks.push(e.data);
-        };
-
-        recorder.onstop = () => {
-          // Final cleanup activities that should happen after recorder stops
-          // cleanup() will handle setIsExporting(false) and animationFrameIdRef.current
-          if (animationFrameIdRef.current) { // This check might be redundant if cleanup is always called
-             cancelAnimationFrame(animationFrameIdRef.current);
-             animationFrameIdRef.current = undefined;
-          }
-          setIsExporting(false); // Ensure this is always set
-
-          if (chunks.length === 0) {
-            toast({ title: "Export Error", description: "No video data was recorded. The file might be empty.", variant: "destructive" });
-            return;
-          }
-          const blob = new Blob(chunks, { type: 'video/webm' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'glass-view_export.webm';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          toast({ title: "Export Successful", description: "Video downloaded." });
-        };
-        
-        recorder.onerror = (event) => {
-          console.error("MediaRecorder error:", event);
-          let errorMessage = "Video recording failed.";
-           if (event && typeof (event as any).error === 'object' && (event as any).error !== null) {
-            const recError = (event as any).error;
-            errorMessage += ` ${recError.name || 'Unknown error'}: ${recError.message || ''}`;
-          }
-          toast({ title: "Export Error", description: errorMessage, variant: "destructive" });
-          cleanup(); // Call cleanup on recorder error
-        };
-
-        bgVideoEndedListener = () => {
-            if (recorder && recorder.state === "recording") {
-                recorder.stop(); // This will trigger onstop, which should call cleanup
-            }
-        };
-        bgVideo.addEventListener('ended', bgVideoEndedListener);
-
-
-        bgVideo.currentTime = 0;
-        if (ovMediaElement && ovMediaElement instanceof HTMLVideoElement && overlayType === 'video' && ovMediaElement.src) {
-          ovMediaElement.currentTime = 0;
-          try {
-            await waitForVideoEvent(ovMediaElement, 'loadeddata');
-            if (!(ovMediaElement.videoWidth > 0 && ovMediaElement.videoHeight > 0)) {
-               console.warn("Overlay video metadata loaded but has no valid dimensions. It might not render correctly.");
-            }
-          } catch (err: any) {
-            console.warn(`Error loading overlay video metadata: ${err.message}. Proceeding without overlay video if it fails to play.`);
-          }
-        }
-
-        try {
-            await bgVideo.play();
-            await waitForVideoEvent(bgVideo, 'playing');
-        } catch (err: any) {
-            throw new Error(`Failed to start background video playback for export: ${err.message}`);
-        }
-
-
-        if (ovMediaElement && ovMediaElement instanceof HTMLVideoElement && overlayType === 'video' && ovMediaElement.src) {
-            try {
-                await ovMediaElement.play();
-                await waitForVideoEvent(ovMediaElement, 'playing');
-            } catch (err: any) {
-                 console.warn(`Could not start overlay video playback, proceeding without it: ${err.message}`);
-            }
-        }
-
-        if (bgVideo.paused && !bgVideo.ended) { // Check after attempting to play
-            throw new Error("Background video playback did not start or paused unexpectedly before recording could begin.");
-        }
-
-        recorder.start(); // Start recording
-
-        const recordFrame = () => {
-          // Primary exit: if animationFrameIdRef.current is undefined (set by cleanup)
-          if (animationFrameIdRef.current === undefined) {
-            return;
-          }
-
-          if (!bgVideo || !ctx || !recorder ) { // Should ideally not happen
-            if (recorder && recorder.state === "recording") recorder.stop();
-            else cleanup();
-            return;
-          }
-
-          let shouldStopRecording = false;
-
-          if (bgVideo.ended) {
-            shouldStopRecording = true;
-          } else if (isFinite(duration) && bgVideo.currentTime >= duration) {
-            shouldStopRecording = true;
-          } else if (bgVideo.paused && !bgVideo.ended) { // Unexpected pause
-            toast({ title: "Export Warning", description: "Video playback paused unexpectedly during export. Export may be incomplete.", variant: "destructive" });
-            shouldStopRecording = true;
-          }
-
-          if (shouldStopRecording) {
-            if (recorder.state === "recording") {
-              recorder.stop(); // Triggers onstop -> cleanup
-            } else {
-              cleanup(); // If recorder already stopped/error
-            }
-            return; // Stop requesting new frames
-          }
-
-          drawFrameOnCanvas(ctx, canvas);
-          
-          // Continue the loop only if animationFrameIdRef.current is still defined (i.e., cleanup hasn't run)
-          if (animationFrameIdRef.current !== undefined) {
-            animationFrameIdRef.current = requestAnimationFrame(recordFrame);
-          }
-        };
-        animationFrameIdRef.current = requestAnimationFrame(recordFrame); // Initialize the loop
-
-    } catch (err: any) {
-        toast({ title: "Export Error", description: err.message || "An unknown error occurred during video export setup.", variant: "destructive" });
-        cleanup(); // Ensure cleanup is called on setup error
-    }
-
-  }, [
-    backgroundMode, backgroundUrl, backgroundType, overlayType, overlayUrl,
-    drawFrameOnCanvas, toast, solidBackgroundColor, // Added solidBackgroundColor
-    // Removed isExporting from here
   ]);
 
 
   const HiddenMediaForExport = () => (
     <div style={{ display: 'none' }}>
-      {backgroundUrl && (backgroundMode === 'default' || backgroundMode === 'custom') && backgroundType === 'image' && <img id="background-media-export" src={backgroundUrl} alt="background export" crossOrigin="anonymous" />}
-      {backgroundUrl && (backgroundMode === 'default' || backgroundMode === 'custom') && backgroundType === 'video' && <video id="background-media-export" src={backgroundUrl} muted playsInline crossOrigin="anonymous" />}
-      {overlayUrl && overlayType === 'image' && <img id="overlay-media-export" src={overlayUrl} alt="overlay export" crossOrigin="anonymous" />}
-      {overlayUrl && overlayType === 'video' && <video id="overlay-media-export" src={overlayUrl} muted playsInline crossOrigin="anonymous" />}
+      {backgroundUrl && (backgroundMode === 'default' || backgroundMode === 'custom') && <img id="background-media-export" src={backgroundUrl} alt="background export" crossOrigin="anonymous" />}
+      {overlayUrl && <img id="overlay-media-export" src={overlayUrl} alt="overlay export" crossOrigin="anonymous" />}
     </div>
   );
 
@@ -832,7 +540,6 @@ export default function GlassViewPage() {
           <PreviewArea
             backgroundMode={backgroundMode}
             backgroundUrl={backgroundUrl}
-            backgroundType={backgroundType}
             backgroundHint={backgroundHint}
             solidBackgroundColor={solidBackgroundColor}
             backgroundEffectBlur={backgroundEffectBlur}
@@ -844,7 +551,6 @@ export default function GlassViewPage() {
             activeVfx={activeVfx}
 
             overlayUrl={overlayUrl}
-            overlayType={overlayType}
             overlayStyle={overlayStyle}
             roundedCorners={roundedCorners}
             cornerRadiusPreview={PREVIEW_CORNER_RADIUS_CSS}
@@ -899,18 +605,6 @@ export default function GlassViewPage() {
               {isExporting ? 'Exporting Image...' : 'Export as Image'}
               <ImageIconLucide className="ml-2 h-4 w-4" />
             </Button>
-            <Button
-              onClick={handleExportVideo}
-              variant="outline"
-              className="w-full"
-              disabled={isExporting || !((backgroundMode === 'default' || backgroundMode === 'custom') && backgroundType === 'video' && backgroundUrl)}
-            >
-              {isExporting && ((backgroundMode === 'default' || backgroundMode === 'custom') && backgroundType === 'video') ? 'Exporting Video...' : 'Export as Video'}
-              <Video className="ml-2 h-4 w-4" />
-            </Button>
-             {!((backgroundMode === 'default' || backgroundMode === 'custom') && backgroundType === 'video' && backgroundUrl) && (
-                <p className="text-xs text-muted-foreground text-center">Video export requires a video background.</p>
-            )}
           </CardContent>
         </Card>
       </footer>

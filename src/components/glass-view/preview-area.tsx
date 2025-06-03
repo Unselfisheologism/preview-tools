@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 interface PreviewAreaProps {
   backgroundMode: 'default' | 'custom' | 'solid' | 'transparent';
   backgroundUrl: string | null;
-  backgroundType: 'image' | 'video' | null;
   backgroundHint: string | null;
   solidBackgroundColor: string;
   backgroundEffectBlur: number;
@@ -20,7 +19,6 @@ interface PreviewAreaProps {
   activeVfx: 'none' | 'cornerGlow';
 
   overlayUrl: string | null;
-  overlayType: 'image' | 'video' | null;
   overlayStyle: React.CSSProperties;
   roundedCorners: boolean;
   cornerRadiusPreview: string;
@@ -35,7 +33,6 @@ interface PreviewAreaProps {
 const PreviewArea: React.FC<PreviewAreaProps> = ({
   backgroundMode,
   backgroundUrl,
-  backgroundType,
   backgroundHint,
   solidBackgroundColor,
   backgroundEffectBlur,
@@ -47,7 +44,6 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
   activeVfx,
 
   overlayUrl,
-  overlayType,
   overlayStyle,
   roundedCorners,
   cornerRadiusPreview,
@@ -146,7 +142,7 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
       className="w-full h-full max-w-[1280px] aspect-video bg-muted/30 shadow-inner overflow-hidden flex items-center justify-center"
       style={previewContainerStyle}
     >
-      {(backgroundMode === 'default' || backgroundMode === 'custom') && backgroundUrl && backgroundType === 'image' && (
+      {(backgroundMode === 'default' || backgroundMode === 'custom') && backgroundUrl && (
         <Image
           src={backgroundUrl}
           alt="Background"
@@ -156,17 +152,6 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
           data-ai-hint={backgroundHint || 'abstract background'}
           priority={backgroundUrl.startsWith('http')}
           unoptimized={backgroundUrl.startsWith('blob:')}
-        />
-      )}
-      {(backgroundMode === 'default' || backgroundMode === 'custom') && backgroundUrl && backgroundType === 'video' && (
-        <video
-          src={backgroundUrl}
-          loop
-          muted
-          playsInline
-          controls // Added controls, removed autoPlay
-          style={backgroundElementStyle}
-          className="w-full h-full object-contain transition-opacity duration-300 ease-in-out"
         />
       )}
       {(backgroundMode !== 'solid' && backgroundMode !== 'transparent') && !backgroundUrl && (
@@ -206,28 +191,15 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
             )}
 
             <div style={overlayMediaContainerDynamicStyle}>
-              {overlayType === 'image' && (
-                <Image
-                  src={overlayUrl}
-                  alt="Overlay Content"
-                  layout="fill"
-                  objectFit="contain"
-                  objectPosition="center top"
-                  data-ai-hint="user interface"
-                  unoptimized={overlayUrl.startsWith('blob:')}
-                />
-              )}
-              {overlayType === 'video' && (
-                <video
-                  src={overlayUrl}
-                  loop
-                  muted
-                  playsInline
-                  controls // Added controls, removed autoPlay
-                  className="w-full h-full object-contain"
-                  style={{ objectPosition: 'center top' }}
-                />
-              )}
+              <Image
+                src={overlayUrl}
+                alt="Overlay Content"
+                layout="fill"
+                objectFit="contain"
+                objectPosition="center top"
+                data-ai-hint="user interface"
+                unoptimized={overlayUrl.startsWith('blob:')}
+              />
             </div>
           </div>
         </div>

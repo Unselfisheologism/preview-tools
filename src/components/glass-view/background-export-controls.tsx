@@ -137,8 +137,8 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
                   <div className="pl-6">
                     <FileUpload
                       id="background-upload"
-                      label="Image/Video File"
-                      accept="image/*,video/*"
+                      label="Image File"
+                      accept="image/*"
                       onFileChange={onBackgroundChange}
                     />
                   </div>
