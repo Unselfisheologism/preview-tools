@@ -14,7 +14,7 @@ const initialReactCode = `
 // No 'import React from "react";' statement is needed.
 
 // Example: A counter component
-const Counter = () => {
+function Counter() {
   const [count, setCount] = React.useState(0);
 
   return (
@@ -42,7 +42,7 @@ const Counter = () => {
       </p>
     </div>
   );
-};
+}
 
 // IMPORTANT: To render your component, make sure its name
 // is the last expression in this snippet.
@@ -96,11 +96,11 @@ export default function SnippetPreviewerPage() {
           color: hsl(var(--foreground));
           min-height: 100vh;
           display: flex;
-          align-items: flex-start; /* Align content to top */
-          justify-content: center; /* Center content horizontally */
+          align-items: flex-start; 
+          justify-content: center; 
         }
         #react-root {
-          width: 100%; /* Allow react root to take full width */
+          width: 100%; 
         }
       </style>
     `;
@@ -122,7 +122,7 @@ export default function SnippetPreviewerPage() {
           // Assume user's code called ReactDOM.render()
         } else {
           const errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called.';
-          console.error(errorMsg);
+          console.error(errorMsg, 'UserProvidedSnippet type:', typeof UserProvidedSnippet, 'UserProvidedSnippet value:', UserProvidedSnippet);
           document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0;">' + errorMsg + ' Please ensure your snippet defines a React component and makes it the last expression (e.g., const MyComponent = () => { ... }; MyComponent;), or calls ReactDOM.render(). Do not use import/export statements.</div>';
         }
       } catch (e) {
@@ -196,9 +196,11 @@ export default function SnippetPreviewerPage() {
               <AlertTitle className="font-semibold text-sm">How to Use This React Previewer</AlertTitle>
               <AlertDescription className="text-muted-foreground space-y-1">
                 <p><strong className="text-foreground">React is Global:</strong> <code className="bg-muted px-1 py-0.5 rounded text-xs">React</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM</code>, and hooks (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">React.useState</code>) are pre-loaded from CDNs. Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">import React from 'react';</code>.</p>
-                <p><strong className="text-foreground">Component as Last Expression:</strong> Define your React component(s). To render a component, ensure its name is the final expression in your snippet (e.g., after defining <code className="bg-muted px-1 py-0.5 rounded text-xs">const MyComponent = () => { /* ... */ };</code>, add <code className="bg-muted px-1 py-0.5 rounded text-xs">MyComponent;</code> on the last line).</p>
-                <p><strong className="text-foreground">No Module Exports:</strong> Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">export default MyComponent;</code> or other export statements.</p>
-                <p><strong className="text-foreground">Styling:</strong> Tailwind CSS (CDN version) and your app's theme variables (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">text-primary</code>) are applied.</p>
+                <p><strong className="text-foreground">Component Definition:</strong> Define your React component, for example, as <code className="bg-muted px-1 py-0.5 rounded text-xs">function MyComponent() { /* ... */ }</code> or <code className="bg-muted px-1 py-0.5 rounded text-xs">const MyComponent = () => { /* ... */ };</code>.</p>
+                <p><strong className="text-foreground">Render by Last Expression:</strong> To render your component, ensure its name is the <strong className="text-accent">final expression</strong> in your snippet. For instance, after defining your component, add <code className="bg-muted px-1 py-0.5 rounded text-xs">MyComponent;</code> on the very last line.</p>
+                <p><strong className="text-foreground">Alternative: Direct Render Call:</strong> Alternatively, you can directly call <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM.render(&lt;YourComponent /&gt;, document.getElementById('react-root'));</code> within your snippet. If you do this, you don't need the component name as the last expression.</p>
+                <p><strong className="text-foreground">No Module Exports:</strong> Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">export default MyComponent;</code> or other ES module export statements.</p>
+                <p><strong className="text-foreground">Styling:</strong> Tailwind CSS (CDN version) and your app's theme variables (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">text-primary</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">bg-card</code>) are applied to the preview.</p>
                 <p><strong className="text-foreground">Project Component Imports:</strong> Direct <code className="bg-muted px-1 py-0.5 rounded text-xs">import</code> of project components (like ShadCN UI from <code className="bg-muted px-1 py-0.5 rounded text-xs">@/components/ui/*</code>) is <strong className="text-destructive">not supported</strong>. Define components within the snippet or use standard HTML elements styled with Tailwind.</p>
               </AlertDescription>
             </Alert>
@@ -231,3 +233,4 @@ export default function SnippetPreviewerPage() {
     </div>
   );
 }
+
