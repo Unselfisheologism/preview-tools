@@ -107,35 +107,55 @@ export default function SnippetPreviewerPage() {
     setIframeStyles(styles);
   }, [isClient]);
 
+  const escapeHtml = (unsafe: string) => {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+  }
+
   const handlePreview = useCallback(() => {
     if (!isClient || !iframeStyles) return;
 
     const userCodeProcessed = `
+      window.reactRenderExecuted = false;
+      const originalRender = ReactDOM.render;
+      ReactDOM.render = (...args) => {
+        window.reactRenderExecuted = true;
+        return originalRender(...args);
+      };
+
+      console.log('[Previewer] Attempting to process user code:', ${JSON.stringify(code)});
+
       try {
         const UserProvidedSnippet = (() => {
-          ${code}
+          ${code} 
         })();
         
+        console.log('[Previewer] IIFE result - UserProvidedSnippet:', UserProvidedSnippet, '(type: ' + (typeof UserProvidedSnippet) + ')');
+
         if (UserProvidedSnippet && (typeof UserProvidedSnippet === 'function' || (typeof UserProvidedSnippet === 'object' && UserProvidedSnippet.$$typeof))) {
            ReactDOM.render(React.createElement(UserProvidedSnippet), document.getElementById('react-root'));
         } else if (UserProvidedSnippet === undefined && window.reactRenderExecuted) {
-          // Assume user's code called ReactDOM.render()
+          console.log('[Previewer] UserProvidedSnippet is undefined, but reactRenderExecuted is true. Assuming user called ReactDOM.render().');
         } else {
           let detail = '';
           if (typeof UserProvidedSnippet !== 'undefined') {
             let valueStr = String(UserProvidedSnippet);
             if (valueStr.length > 150) valueStr = valueStr.substring(0, 150) + '... (truncated)';
-            detail = '(Received type: ' + (typeof UserProvidedSnippet) + ', value: ' + valueStr + ')';
+            detail = '(Received type: ' + (typeof UserProvidedSnippet) + ', value: ' + escapeHtml(valueStr) + ')';
           } else {
             detail = '(Received undefined from snippet evaluation)';
           }
           const errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called. ' + detail + '. Please ensure your snippet defines a React component and makes it the last expression (e.g., const MyComponent = () => { ... }; MyComponent;), or calls ReactDOM.render(). Do not use import/export statements.';
           console.error('[Previewer Error]', errorMsg, 'UserProvidedSnippet:', UserProvidedSnippet, 'window.reactRenderExecuted:', window.reactRenderExecuted);
-          document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0; font-size: 12px; white-space: pre-wrap; word-break: break-all;">' + errorMsg + '</div>';
+          document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0; font-size: 12px; white-space: pre-wrap; word-break: break-all;">' + escapeHtml(errorMsg) + '</div>';
         }
       } catch (e) {
         console.error("[Previewer Script Error] Error executing snippet:", e);
-        document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0; font-size: 12px;">Error: ' + e.message + '. Check browser console (iframe context) for details. Ensure your React code is valid and does not use import/export.</div>';
+        document.getElementById('react-root').innerHTML = '<div style="color: red; padding: 10px; border: 1px solid red; background: #ffe0e0; font-size: 12px;">Error: ' + escapeHtml(e.message) + '. Check browser console (iframe context) for details. Ensure your React code is valid and does not use import/export.</div>';
       }
     `;
 
@@ -152,12 +172,6 @@ export default function SnippetPreviewerPage() {
       <body>
         <div id="react-root"></div>
         <script type="text/babel">
-          window.reactRenderExecuted = false;
-          const originalRender = ReactDOM.render;
-          ReactDOM.render = (...args) => {
-            window.reactRenderExecuted = true;
-            return originalRender(...args);
-          };
           ${userCodeProcessed}
         </script>
       </body>
@@ -232,7 +246,7 @@ export default function SnippetPreviewerPage() {
             <iframe
               srcDoc={iframeSrcDoc}
               title="React Snippet Preview"
-              sandbox="allow-scripts"
+              sandbox="allow-scripts" 
               className="w-full h-full border-0"
             />
           </CardContent>
