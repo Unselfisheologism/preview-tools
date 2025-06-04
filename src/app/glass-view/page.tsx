@@ -481,7 +481,7 @@ export default function GlassViewPage() {
           </Button>
         </Link>
       </header>
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 lg:overflow-hidden">
         <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out">
           <OverlayControls
             onOverlayChange={handleOverlayFileChange}
@@ -578,5 +578,7 @@ export default function GlassViewPage() {
     </div>
   );
 }
+
+    
 
     
