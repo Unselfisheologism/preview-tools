@@ -64,7 +64,6 @@ export default function GlassViewPage() {
   const [browserUrlText, setBrowserUrlText] = useState('example.com');
 
   const [isExporting, setIsExporting] = useState(false);
-  // Removed animationFrameIdRef as video export is removed
 
 
   useEffect(() => {
@@ -118,11 +117,11 @@ export default function GlassViewPage() {
       setBackgroundHint('custom background');
     }
     return () => {
-      if (objectUrl && backgroundFile) { // No need to check backgroundMode here, if objectUrl exists for this file, revoke it
+      if (objectUrl && backgroundFile) { 
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [backgroundFile, backgroundMode]); // Removed backgroundUrl
+  }, [backgroundFile, backgroundMode]); 
 
   useEffect(() => {
     const currentBackgroundUrlIsBlob = backgroundUrl?.startsWith('blob:') ?? false;
@@ -145,7 +144,7 @@ export default function GlassViewPage() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backgroundMode, handleSetDefaultBackground]); // Removed backgroundUrl, defaultBackgrounds
+  }, [backgroundMode, handleSetDefaultBackground]); 
 
 
   const handleOverlayFileChange = (file: File | null) => {
@@ -482,8 +481,8 @@ export default function GlassViewPage() {
           </Button>
         </Link>
       </header>
-      <div className="flex flex-row flex-1 overflow-hidden">
-        <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out">
           <OverlayControls
             onOverlayChange={handleOverlayFileChange}
             opacity={opacity}
@@ -503,7 +502,7 @@ export default function GlassViewPage() {
           />
         </aside>
 
-        <main className="flex-1 p-4 lg:p-6 flex items-center justify-center overflow-hidden">
+        <main className="flex-1 p-4 lg:p-6 flex items-center justify-center overflow-hidden min-h-[300px] md:min-h-[400px] lg:min-h-0">
           <PreviewArea
             backgroundMode={backgroundMode}
             backgroundUrl={backgroundUrl}
@@ -530,7 +529,7 @@ export default function GlassViewPage() {
           />
         </main>
 
-        <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out shrink-0">
+        <aside className="w-full lg:w-[350px] p-4 lg:p-6 bg-card shadow-lg overflow-y-auto transition-all duration-300 ease-in-out">
           <BackgroundExportControls
             defaultBackgrounds={defaultBackgrounds}
             onSetDefaultBackground={handleSetDefaultBackground}
@@ -579,3 +578,5 @@ export default function GlassViewPage() {
     </div>
   );
 }
+
+    
