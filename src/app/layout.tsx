@@ -22,6 +22,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" type="image/x-icon" /> 
       </head>
       <body className="font-body antialiased">
+        {children}
         <Toaster />
         {/* Made in Bolt.new badge */}
         <div className="flex flex-col items-center mt-8">
@@ -53,9 +54,7 @@ export default function RootLayout({
           </a>
         </div>
       </body>
-        {children}
-        <Toaster />
-      </body>
+        
     </html>
   );
 }
