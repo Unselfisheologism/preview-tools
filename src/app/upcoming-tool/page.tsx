@@ -126,7 +126,6 @@ export default function SnippetPreviewerPage() {
   const handlePreview = useCallback(() => {
     if (!isClient || !iframeStyles) return;
 
-    // This function MUST be defined within this scope to be available in the iframe's srcDoc script
     const userCodeProcessed = `
       function escapeHtml(unsafe) {
         if (typeof unsafe !== 'string') return '';
@@ -150,18 +149,37 @@ export default function SnippetPreviewerPage() {
       
       let UserProvidedSnippet = undefined;
       let evaluationError = null;
+      let transformedBabelCode = '';
 
-      console.log('[Previewer] About to evaluate user code in IIFE.');
+      console.log('[Previewer] About to transform and evaluate user code.');
       try {
-        UserProvidedSnippet = (() => {
-          // User's code is injected and executed here by Babel
-          ${code} 
+        const rawUserCode = ${JSON.stringify(code)};
+        transformedBabelCode = Babel.transform(rawUserCode, { presets: ["react"], retainLines: true }).code;
+        console.log('[Previewer] Babel Transformed Code:\\n', transformedBabelCode);
+
+        UserProvidedSnippet = (function() {
+          // This IIFE executes the transformed code and should return the last expression's value.
+          return eval(transformedBabelCode);
         })();
-        console.log('[Previewer] IIFE completed. UserProvidedSnippet type:', typeof UserProvidedSnippet, 'Value:', UserProvidedSnippet);
+        
+        console.log('[Previewer] IIFE on eval_ed code completed. UserProvidedSnippet type:', typeof UserProvidedSnippet, 'Value:', UserProvidedSnippet);
+
       } catch (e) {
         evaluationError = e;
-        console.error("[Previewer Script Error] Error DURING IIFE for user snippet:", e);
-        // Error will be displayed below by the main logic
+        let errorSource = "Unknown Error";
+        if (e instanceof SyntaxError && e.message.toLowerCase().includes("babel")) {
+            errorSource = "Babel Transformation";
+        } else if (e instanceof SyntaxError) {
+            errorSource = "JavaScript Syntax Error (likely in transformed code)";
+        } else {
+            errorSource = "Runtime Error (in transformed code)";
+        }
+        console.error("[Previewer Script Error] Error during " + errorSource + ":", e);
+        if (transformedBabelCode && errorSource !== "Babel Transformation") {
+            console.error("[Previewer] Transformed code that was evaluated:\\n", transformedBabelCode);
+        } else if (!transformedBabelCode && errorSource === "Babel Transformation") {
+             console.error("[Previewer] Raw code that failed Babel transformation:\\n", rawUserCode);
+        }
       }
 
       if (!evaluationError) {
@@ -175,7 +193,6 @@ export default function SnippetPreviewerPage() {
         } else if (window.reactRenderExecuted) {
           console.log('[Previewer] UserProvidedSnippet is not a direct component/element, but reactRenderExecuted is true. Assuming user called ReactDOM.render().');
         } else {
-          // This path is hit if UserProvidedSnippet is undefined and IIFE didn't error, and no explicit render call.
           let errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called directly in the snippet. ';
           if (typeof UserProvidedSnippet === 'undefined') {
             errorMsg += '(Received undefined from snippet evaluation). ';
@@ -188,9 +205,9 @@ export default function SnippetPreviewerPage() {
           console.error('[Previewer Error]', errorMsg, 'UserProvidedSnippet:', UserProvidedSnippet, 'window.reactRenderExecuted:', window.reactRenderExecuted);
           document.getElementById('react-root').innerHTML = '<div class="preview-error-box">' + escapeHtml(errorMsg) + '</div>';
         }
-      } else { // evaluationError is not null
-        const errorMsg = 'RUNTIME ERROR IN YOUR SNIPPET: ' + escapeHtml(evaluationError.message) + '. Check browser console (iframe context) for details.';
-        console.error('[Previewer Error]', errorMsg, 'evaluationError:', evaluationError);
+      } else { 
+        const errorMsg = 'ERROR PROCESSING YOUR SNIPPET: ' + escapeHtml(evaluationError.message) + '. Check browser console (iframe context) for details, including the transformed code.';
+        console.error('[Previewer Error Displayed]', errorMsg, 'evaluationError:', evaluationError);
         document.getElementById('react-root').innerHTML = '<div class="preview-error-box">' + escapeHtml(errorMsg) + '</div>';
       }
     `;
@@ -206,7 +223,7 @@ export default function SnippetPreviewerPage() {
       </head>
       <body>
         <div id="react-root"></div>
-        <script type="text/babel" data-presets="react">
+        <script>
           ${userCodeProcessed}
         </script>
       </body>
