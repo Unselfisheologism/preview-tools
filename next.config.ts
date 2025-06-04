@@ -2,6 +2,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  output: 'export', // Add this line for static HTML export
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
@@ -24,6 +25,11 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       }
     ],
+    // When outputting static HTML, next/image needs unoptimized: true
+    // if you don't have a custom image loader or Netlify's image processing.
+    // However, output: 'export' often handles this, or Netlify's build
+    // process can optimize images. Let's start without it and add if needed.
+    // unoptimized: true, 
   },
 };
 
