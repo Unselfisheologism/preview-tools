@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Glasses, Construction } from 'lucide-react';
+import { ArrowRight, Glasses, Code, TestTube } from 'lucide-react';
 
 export default function HomePage() {
   return (
@@ -43,22 +43,22 @@ export default function HomePage() {
 
         <Link href="/upcoming-tool" passHref legacyBehavior>
           <a className="block h-full">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col bg-muted/30">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center text-2xl">
-                  <Construction className="mr-3 h-7 w-7 text-primary" />
-                  Upcoming Tool
+                  <TestTube className="mr-3 h-7 w-7 text-primary" />
+                  UI Code Tester/Previewer
                 </CardTitle>
-                <CardDescription>Details about the second innovative tool coming soon!</CardDescription>
+                <CardDescription>Test and preview HTML/Tailwind or React JSX snippets with live updates and theme integration.</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Stay tuned for another exciting utility. More information will be available shortly.
+                  Quickly iterate on UI ideas by pasting your code and seeing it render instantly. Supports Tailwind CSS and theme variables.
                 </p>
               </CardContent>
                <div className="p-6 pt-0 mt-auto">
                   <span className="text-sm font-medium text-primary hover:underline flex items-center">
-                    Learn More (Coming Soon) <ArrowRight className="ml-2 h-4 w-4" />
+                    Open UI Previewer <ArrowRight className="ml-2 h-4 w-4" />
                   </span>
               </div>
             </Card>
