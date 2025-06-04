@@ -9,18 +9,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, Eye, ArrowLeft, Info } from "lucide-react";
 
+// Changed to const/arrow function syntax for testing IIFE return behavior
 const initialReactCode = `
 // React, ReactDOM, and hooks like React.useState are globally available.
 // No 'import React from "react";' statement is needed.
 
-function MyTestComponent() {
+const MyTestComponent = () => {
   const [count, setCount] = React.useState(0);
   const [showMessage, setShowMessage] = React.useState(false);
 
   return (
     <div className="p-6 bg-card text-card-foreground rounded-lg shadow-md max-w-md mx-auto">
       <h1 className="text-3xl font-bold text-primary mb-4">
-        React Test Snippet
+        React Test Snippet (Arrow Fn)
       </h1>
       <p className="text-muted-foreground mb-2">Current count: <span className="font-semibold text-lg text-accent">{count}</span></p>
       
@@ -47,7 +48,7 @@ function MyTestComponent() {
       </p>
     </div>
   );
-}
+};
 
 // IMPORTANT: To render your component, make sure its name
 // is the last expression in this snippet.
@@ -125,8 +126,8 @@ export default function SnippetPreviewerPage() {
   const handlePreview = useCallback(() => {
     if (!isClient || !iframeStyles) return;
 
+    // This function MUST be defined within this scope to be available in the iframe's srcDoc script
     const userCodeProcessed = `
-      // Function to escape HTML, defined within the iframe's scope
       function escapeHtml(unsafe) {
         if (typeof unsafe !== 'string') return '';
         return unsafe
@@ -137,7 +138,7 @@ export default function SnippetPreviewerPage() {
              .replace(/'/g, "&#039;");
       }
 
-      window.reactRenderExecuted = false; // To detect if user calls ReactDOM.render themselves
+      window.reactRenderExecuted = false; 
       const originalRender = ReactDOM.render;
       ReactDOM.render = (...args) => {
         console.log('[Previewer] ReactDOM.render called by user snippet.');
@@ -148,40 +149,49 @@ export default function SnippetPreviewerPage() {
       console.log('[Previewer] Attempting to process user code with JSON.stringify:', ${JSON.stringify(code)});
       
       let UserProvidedSnippet = undefined;
+      let evaluationError = null;
+
+      console.log('[Previewer] About to evaluate user code in IIFE.');
       try {
         UserProvidedSnippet = (() => {
           // User's code is injected and executed here by Babel
           ${code} 
         })();
-        
-        console.log('[Previewer] IIFE evaluation result - UserProvidedSnippet:', UserProvidedSnippet, '(type: ' + (typeof UserProvidedSnippet) + ')');
+        console.log('[Previewer] IIFE completed. UserProvidedSnippet type:', typeof UserProvidedSnippet, 'Value:', UserProvidedSnippet);
+      } catch (e) {
+        evaluationError = e;
+        console.error("[Previewer Script Error] Error DURING IIFE for user snippet:", e);
+        // Error will be displayed below by the main logic
+      }
 
+      if (!evaluationError) {
+        console.log('[Previewer] Checking UserProvidedSnippet type after IIFE. Current UserProvidedSnippet:', UserProvidedSnippet);
         if (UserProvidedSnippet && typeof UserProvidedSnippet === 'function') {
            console.log('[Previewer] Rendering UserProvidedSnippet as a function component.');
            ReactDOM.render(React.createElement(UserProvidedSnippet), document.getElementById('react-root'));
         } else if (UserProvidedSnippet && typeof UserProvidedSnippet === 'object' && UserProvidedSnippet.$$typeof) {
            console.log('[Previewer] Rendering UserProvidedSnippet as a React element (already created).');
            ReactDOM.render(UserProvidedSnippet, document.getElementById('react-root'));
-        }
-        else if (window.reactRenderExecuted) {
+        } else if (window.reactRenderExecuted) {
           console.log('[Previewer] UserProvidedSnippet is not a direct component/element, but reactRenderExecuted is true. Assuming user called ReactDOM.render().');
-          // No action needed here, user's ReactDOM.render call should have handled it.
         } else {
-          let detail = '';
+          // This path is hit if UserProvidedSnippet is undefined and IIFE didn't error, and no explicit render call.
+          let errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called directly in the snippet. ';
           if (typeof UserProvidedSnippet === 'undefined') {
-            detail = '(Received undefined from snippet evaluation)';
+            errorMsg += '(Received undefined from snippet evaluation). ';
           } else {
             let valueStr = String(UserProvidedSnippet);
             if (valueStr.length > 150) valueStr = valueStr.substring(0, 150) + '... (truncated)';
-            detail = '(Received type: ' + (typeof UserProvidedSnippet) + ', value: ' + escapeHtml(valueStr) + ')';
+            errorMsg += '(Received type: ' + (typeof UserProvidedSnippet) + ', value: ' + escapeHtml(valueStr) + '). ';
           }
-          const errorMsg = 'Snippet did not evaluate to a renderable React component, or ReactDOM.render() was not called directly in the snippet. ' + detail + '. Please ensure your snippet defines a React component and makes its name the last expression, or explicitly calls ReactDOM.render(). Do not use import/export statements.';
+          errorMsg += 'Please ensure your snippet defines a React component and makes its name the last expression, or explicitly calls ReactDOM.render(). Do not use import/export statements.';
           console.error('[Previewer Error]', errorMsg, 'UserProvidedSnippet:', UserProvidedSnippet, 'window.reactRenderExecuted:', window.reactRenderExecuted);
           document.getElementById('react-root').innerHTML = '<div class="preview-error-box">' + escapeHtml(errorMsg) + '</div>';
         }
-      } catch (e) {
-        console.error("[Previewer Script Error] Error during snippet execution or rendering attempt:", e);
-        document.getElementById('react-root').innerHTML = '<div class="preview-error-box">RUNTIME ERROR: ' + escapeHtml(e.message) + '. Check browser console (iframe context) for details.</div>';
+      } else { // evaluationError is not null
+        const errorMsg = 'RUNTIME ERROR IN YOUR SNIPPET: ' + escapeHtml(evaluationError.message) + '. Check browser console (iframe context) for details.';
+        console.error('[Previewer Error]', errorMsg, 'evaluationError:', evaluationError);
+        document.getElementById('react-root').innerHTML = '<div class="preview-error-box">' + escapeHtml(errorMsg) + '</div>';
       }
     `;
 
@@ -210,7 +220,7 @@ export default function SnippetPreviewerPage() {
       handlePreview();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, iframeStyles, isClient]); // handlePreview is not needed as a dependency here if it's stable or only relies on its own args/closure
+  }, [code, iframeStyles, isClient]); // handlePreview is stable due to useCallback
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
@@ -243,8 +253,8 @@ export default function SnippetPreviewerPage() {
               <Info className="h-4 w-4" />
               <AlertTitle className="font-semibold text-sm">How to Use This React Previewer</AlertTitle>
               <AlertDescription className="text-muted-foreground space-y-1">
-                <p><strong className="text-foreground">React is Global:</strong> <code className="bg-muted px-1 py-0.5 rounded text-xs">React</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM</code>, and hooks (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">React.useState</code>) are pre-loaded. Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">import React from 'react';</code>.</p>
-                <p><strong className="text-foreground">Component Definition:</strong> Define your React component, for example, as <code className="bg-muted px-1 py-0.5 rounded text-xs">function MyComponent() { /* ... */ }</code> or <code className="bg-muted px-1 py-0.5 rounded text-xs">const MyComponent = () => { /* ... */ };</code>.</p>
+                <p><strong className="text-foreground">React is Global:</strong> <code className="bg-muted px-1 py-0.5 rounded text-xs">React</code>, <code className="bg-muted px-1 py-05 rounded text-xs">ReactDOM</code>, and hooks (e.g., <code className="bg-muted px-1 py-0.5 rounded text-xs">React.useState</code>) are pre-loaded. Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">import React from 'react';</code>.</p>
+                <p><strong className="text-foreground">Component Definition:</strong> Define your React component. The <code className="bg-muted px-1 py-0.5 rounded text-xs">const MyComponent = () =&gt; { /* ... */ };</code> style is currently recommended for best reliability in this previewer.</p>
                 <p><strong className="text-foreground">Render by Last Expression:</strong> To render your component, ensure its name is the <strong className="text-accent">final expression</strong> in your snippet (e.g., after defining <code className="bg-muted px-1 py-0.5 rounded text-xs">MyComponent</code>, add <code className="bg-muted px-1 py-0.5 rounded text-xs">MyComponent;</code> on the last line).</p>
                 <p><strong className="text-foreground">Alternative - Direct Render:</strong> You can call <code className="bg-muted px-1 py-0.5 rounded text-xs">ReactDOM.render(&lt;YourComponent /&gt;, document.getElementById('react-root'));</code> directly in your snippet. If so, the "last expression" rule is not needed.</p>
                 <p><strong className="text-foreground">No Module Exports:</strong> Do <strong className="text-destructive">not</strong> use <code className="bg-muted px-1 py-0.5 rounded text-xs">export default MyComponent;</code>.</p>
@@ -281,5 +291,4 @@ export default function SnippetPreviewerPage() {
     </div>
   );
 }
-
     
