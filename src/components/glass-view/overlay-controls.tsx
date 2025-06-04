@@ -47,7 +47,7 @@ const OverlayControls: React.FC<OverlayControlsProps> = ({
   onBrowserUrlChange,
 }) => {
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6 flex flex-col">
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">

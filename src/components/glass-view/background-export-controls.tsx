@@ -94,7 +94,7 @@ const BackgroundExportControls: React.FC<BackgroundExportControlsProps> = ({
   onActiveVfxChange,
 }) => {
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6 flex flex-col">
       <Tabs defaultValue="source" className="flex-grow flex flex-col">
         <TabsList className="grid w-full grid-cols-2 sticky top-0 bg-card z-10 mb-4 rounded-md border">
           <TabsTrigger value="source" className="rounded-l-md data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Source</TabsTrigger>
