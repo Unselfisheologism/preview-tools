@@ -6,6 +6,9 @@ import { Toaster } from "@/components/ui/toaster";
 export const metadata: Metadata = {
   title: 'Studio Tools - Creative Utilities',
   description: 'A suite of tools for designers and developers, including Glass View and more.',
+  icons: {
+    icon: 'https://res.cloudinary.com/ddz3nsnq1/image/upload/v1749126849/Screenshot_2025-06-04_181750-removebg-preview_t95dl6.png',
+  },
 };
 
 export default function RootLayout({
