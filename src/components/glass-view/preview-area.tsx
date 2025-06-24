@@ -192,15 +192,27 @@ const PreviewArea: React.FC<PreviewAreaProps> = ({
             )}
 
             <div style={overlayMediaContainerDynamicStyle}>
-              <Image
-                src={overlayUrl}
-                alt="Overlay Content"
-                fill
-                style={{ objectFit: 'contain', objectPosition: 'center top'}}
-                data-ai-hint="user interface"
-                unoptimized={overlayUrl.startsWith('blob:')}
-                sizes="(max-width: 1280px) 100vw, 1280px"
-              />
+              {overlayUrl && (overlayUrl.endsWith('.mp4') || overlayUrl.endsWith('.webm') || overlayUrl.endsWith('.ogg')) ? (
+                <video
+                  src={overlayUrl}
+                  controls
+                  loop
+                  style={{
+                    objectFit: 'contain',
+                    objectPosition: 'center top',
+                    width: '100%',
+                    height: '100%',
+                  }}
+                />
+              ) : (
+                <Image
+                  src={overlayUrl}
+                  alt="Overlay Content"
+                  fill
+                  style={{ objectFit: 'contain', objectPosition: 'center top'}}
+                  data-ai-hint="user interface"
+                />
+              )}
             </div>
           </div>
         </div>
