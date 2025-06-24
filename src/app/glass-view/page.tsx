@@ -775,7 +775,7 @@ export default function GlassViewPage() {
         // Check if background video actually started playing
         if (bgVideo.paused || bgVideo.seeking || bgVideo.ended) {
             throw new Error("Background video playback did not start or paused unexpectedly before recording could begin.");
-         }
+        }
 
         recorder.start(); // Start recording
 
@@ -819,6 +819,7 @@ export default function GlassViewPage() {
           }
         };
         animationFrameIdRef.current = requestAnimationFrame(recordFrame); // Initialize the loop
+
 
     } catch (err: any) {
         toast({ title: "Export Error", description: err.message || "An unknown error occurred during video export setup.", variant: "destructive" });
